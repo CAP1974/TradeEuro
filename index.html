@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VIDANOVA | Dashboard Carteira EUR</title>
+  <style>
+    :root{
+      --bg:#08111f;
+      --panel:#0f1a2b;
+      --panel2:#142239;
+      --line:#22324f;
+      --text:#eaf1ff;
+      --muted:#9bb0d3;
+      --green:#22c55e;
+      --red:#ef4444;
+      --amber:#f59e0b;
+      --blue:#60a5fa;
+      --cyan:#22d3ee;
+      --shadow:0 18px 40px rgba(0,0,0,.28);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Arial,Helvetica,sans-serif;
+      background:linear-gradient(180deg,#07101d 0%,#0b1526 100%);
+      color:var(--text);
+      padding:24px;
+    }
+    .wrap{max-width:1600px;margin:0 auto;display:grid;gap:20px}
+    .hero,.panel,.toolbar,.card{
+      background:linear-gradient(180deg,var(--panel),var(--panel2));
+      border:1px solid var(--line);
+      box-shadow:var(--shadow);
+    }
+    .hero{
+      border-radius:24px;
+      padding:22px;
+      display:flex;
+      justify-content:space-between;
+      gap:18px;
+      flex-wrap:wrap;
+      align-items:flex-start;
+    }
+    .hero h1{margin:0 0 8px;font-size:32px}
+    .hero p{margin:0;max-width:980px;color:var(--muted);font-size:14px;line-height:1.65}
+    .badge-row,.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .badge,.pill,.tab-btn,.action-btn{
+      border:1px solid var(--line);
+      background:#0d1727;
+      color:var(--text);
+      border-radius:999px;
+      padding:10px 14px;
+      font-size:12px;
+    }
+    .toolbar{
+      justify-content:space-between;
+      border-radius:var(--radius);
+      padding:14px;
+    }
+    .tab-btn,.action-btn{cursor:pointer;transition:.18s ease}
+    .tab-btn:hover,.action-btn:hover{transform:translateY(-1px);border-color:var(--blue)}
+    .tab-btn.active{background:linear-gradient(180deg,rgba(96,165,250,.18),rgba(96,165,250,.08));border-color:rgba(96,165,250,.55)}
+    .action-btn.primary{background:linear-gradient(180deg,rgba(34,211,238,.18),rgba(34,211,238,.08));border-color:rgba(34,211,238,.5)}
+    .cards{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:14px}
+    .card{border-radius:18px;padding:16px;min-height:112px}
+    .label{color:var(--muted);font-size:12px;margin-bottom:10px;letter-spacing:.03em;text-transform:uppercase}
+    .value{font-size:28px;line-height:1.08;font-weight:700}
+    .sub{margin-top:8px;color:var(--muted);font-size:12px;line-height:1.5}
+    .green{color:var(--green)} .red{color:var(--red)} .amber{color:var(--amber)} .blue{color:var(--blue)} .cyan{color:var(--cyan)}
+    .panel{border-radius:20px;overflow:hidden}
+    .panel-head{
+      display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+      padding:16px 18px;border-bottom:1px solid var(--line)
+    }
+    .panel-head h2{margin:0;font-size:18px}
+    .panel-head p{margin:4px 0 0;color:var(--muted);font-size:13px;line-height:1.5}
+    .hidden{display:none}
+    .table-wrap{overflow-x:auto}
+    table{width:100%;min-width:980px;border-collapse:collapse}
+    th,td{
+      padding:13px 12px;text-align:left;border-bottom:1px solid var(--line);
+      font-size:14px;white-space:nowrap;vertical-align:middle
+    }
+    th{background:rgba(255,255,255,.03);color:var(--muted);font-weight:600;position:sticky;top:0;z-index:1}
+    tbody tr:hover{background:rgba(255,255,255,.025)}
+    .ticker{font-weight:700;color:var(--text)}
+    .name{display:block;margin-top:3px;font-size:12px;color:var(--muted)}
+    .mono{font-family:Consolas,Monaco,monospace;font-size:12px;color:var(--muted)}
+    .grid-2{display:grid;grid-template-columns:1.1fr .9fr;gap:20px}
+    .notes{padding:18px}
+    .notes ul{margin:0;padding-left:18px;color:var(--muted);line-height:1.7}
+    .sticky-left{position:sticky;left:0;background:linear-gradient(180deg,var(--panel),var(--panel2));z-index:2}
+    .sticky-left.header-cell{z-index:3;background:#16243a}
+    .date-group{background:rgba(96,165,250,.09);color:var(--blue);text-align:center;border-left:1px solid var(--line);border-right:1px solid var(--line);font-weight:700}
+    .footer-note{font-size:12px;color:var(--muted);padding:0 4px 16px 18px}
+    canvas{width:100%;height:auto;background:#0b1526;border:1px solid var(--line);border-radius:12px}
+    @media (max-width:1360px){.cards{grid-template-columns:repeat(5,minmax(0,1fr))}.grid-2{grid-template-columns:1fr}}
+    @media (max-width:860px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div>
+        <h1>VIDANOVA | Dashboard Carteira EUR</h1>
+        <p>Versão HTML autónoma pronta para GitHub Pages. Estrutura separada em motor de dados e interface visual, com navegação por abas, gráficos, filtros e exportação JSON.</p>
+      </div>
+      <div class="badge-row">
+        <div class="badge" id="badgePortfolio"></div>
+        <div class="badge" id="badgeDate"></div>
+        <div class="badge">Modo: empresa de trading | caixa atual 0.00€</div>
+      </div>
+    </section>
+
+    <section class="toolbar">
+      <div class="badge-row" id="tabButtons">
+        <button class="tab-btn active" data-tab="overview">Visão geral</button>
+        <button class="tab-btn" data-tab="day">Tabela do dia</button>
+        <button class="tab-btn" data-tab="history">Histórico</button>
+        <button class="tab-btn" data-tab="decision">Decisão</button>
+        <button class="tab-btn" data-tab="periods">Semana / Mês</button>
+        <button class="tab-btn" data-tab="charts">Gráficos</button>
+        <button class="tab-btn" data-tab="events">Eventos</button>
+        <button class="tab-btn" data-tab="data">Base de dados</button>
+      </div>
+      <div class="badge-row">
+        <button class="action-btn" id="filterAllBtn">Todos</button>
+        <button class="action-btn" id="filterWinnersBtn">Vencedores</button>
+        <button class="action-btn" id="filterLosersBtn">Perdedores</button>
+        <button class="action-btn primary" id="exportJsonBtn">Exportar JSON</button>
+      </div>
+    </section>
+
+    <section class="cards" id="cardsResumo"></section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Hoje em 20 segundos</h2>
+          <p>Faixa de leitura ultra-rápida com os sinais mais críticos do dia.</p>
+        </div>
+        <span class="pill">Resumo instantâneo</span>
+      </div>
+      <div class="notes"><ul id="quickSummary"></ul></div>
+    </section>
+
+    <section class="panel tab-view" data-tab-content="overview">
+      <div class="panel-head">
+        <div>
+          <h2>Resumo executivo</h2>
+          <p>Métricas prioritárias e rankings principais numa única vista.</p>
+        </div>
+        <span class="pill" id="pillOverview"></span>
+      </div>
+      <div class="grid-2">
+        <div class="panel-body notes"><ul id="qualityMetrics"></ul></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Ranking</th><th>Ativo</th><th>Valor</th><th>Leitura</th></tr></thead>
+            <tbody id="tbodyRankings"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel tab-view hidden" data-tab-content="day">
+      <div class="panel-head">
+        <div>
+          <h2>Tabela operacional do dia</h2>
+          <p>Focada em comparação, risco, peso, setup e ação.</p>
+        </div>
+        <span class="pill" id="pillToday"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Ativo</th><th>Qtd</th><th>Preço médio</th><th>Preço atual</th><th>Valor</th>
+              <th>P/L total €</th><th>P/L total %</th><th>P/L dia €</th><th>P/L dia %</th>
+              <th>Peso %</th><th>Setup</th><th>Stage</th><th>Stop</th><th>Target 1</th><th>Risk %</th><th>Dias aberto</th><th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyToday"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel tab-view hidden" data-tab-content="history">
+      <div class="panel-head">
+        <div>
+          <h2>Matriz histórica diária</h2>
+          <p>Vista horizontal tipo Excel para leitura multi-dia.</p>
+        </div>
+        <span class="pill">Tipo: matriz Excel</span>
+      </div>
+      <div class="table-wrap"><table id="historyMatrix"></table></div>
+    </section>
+
+    <section class="panel tab-view hidden" data-tab-content="decision">
+      <div class="panel-head">
+        <div>
+          <h2>Quadro de decisão do dia</h2>
+          <p>Bloco curto para ação imediata.</p>
+        </div>
+        <span class="pill">Tipo: operacional</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Ativo</th><th>Estado</th><th>Ganho %</th><th>Peso %</th><th>Risk %</th><th>Leitura</th><th>Ação</th><th>Prioridade</th></tr></thead>
+          <tbody id="tbodyDecision"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel tab-view hidden" data-tab-content="periods">
+      <div class="panel-head">
+        <div>
+          <h2>Resumo semanal e mensal</h2>
+          <p>Agrupamento por período para fechar performance sem perder a leitura diária.</p>
+        </div>
+        <span class="pill">Tipo: períodos</span>
+      </div>
+      <div class="grid-2">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Período</th><th>Valor final</th><th>P/L aberto €</th><th>P/L aberto %</th><th>P/L período €</th><th>P/L período %</th><th>Melhor ativo</th><th>Pior ativo</th></tr></thead>
+            <tbody id="tbodyPeriodSummary"></tbody>
+          </table>
+        </div>
+        <div class="notes">
+          <ul>
+            <li>Semana e mês ficam separados da leitura do dia.</li>
+            <li>O modelo já está preparado para automatizar esses cálculos com mais histórico.</li>
+            <li>Ideal para acompanhar consistência e ritmo da carteira.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel tab-view hidden" data-tab-content="charts">
+      <div class="panel-head">
+        <div>
+          <h2>Gráficos rápidos</h2>
+          <p>Visualizações curtas para evolução, alocação e P/L diário.</p>
+        </div>
+        <span class="pill">Tipo: visual</span>
+      </div>
+      <div class="grid-2" style="padding:18px;">
+        <div class="panel" style="overflow:hidden;">
+          <div class="panel-head"><div><h2 style="font-size:16px;">Evolução do valor total</h2></div></div>
+          <div style="padding:18px;"><canvas id="equityChart" width="700" height="220"></canvas></div>
+        </div>
+        <div class="panel" style="overflow:hidden;">
+          <div class="panel-head"><div><h2 style="font-size:16px;">Peso por ativo</h2></div></div>
+          <div style="padding:18px;"><canvas id="allocationChart" width="700" height="220"></canvas></div>
+        </div>
+      </div>
+      <div class="grid-2" style="padding:0 18px 18px 18px;">
+        <div class="panel" style="overflow:hidden;">
+          <div class="panel-head"><div><h2 style="font-size:16px;">P/L diário do projeto</h2><p style="margin:4px 0 0;">Base do projeto iniciada em 2026-04-09.</p></div></div>
+          <div style="padding:18px;"><canvas id="dailyPLChart" width="700" height="220"></canvas></div>
+        </div>
+        <div class="notes">
+          <ul>
+            <li>O gráfico de P/L diário começa no dia base do projeto.</li>
+            <li>09/04 fica como base e 10/04 como primeiro delta real.</li>
+            <li>Com mais dias, o gráfico passa a mostrar consistência, aceleração e travagem.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel tab-view hidden" data-tab-content="events">
+      <div class="panel-head">
+        <div>
+          <h2>Eventos operacionais</h2>
+          <p>Regista alterações que não são movimento puro de mercado.</p>
+        </div>
+        <span class="pill">Tipo: operações</span>
+      </div>
+      <div class="grid-2">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Data</th><th>Ticker</th><th>Tipo</th><th>Qtd</th><th>Valor</th><th>Nota</th></tr></thead>
+            <tbody id="tbodyEvents"></tbody>
+          </table>
+        </div>
+        <div class="notes">
+          <ul>
+            <li><strong>Nova entrada:</strong> abres um ativo novo.</li>
+            <li><strong>Reforço:</strong> aumentas posição num ativo já aberto.</li>
+            <li><strong>Venda parcial:</strong> reduzes parte da posição.</li>
+            <li><strong>Saída total:</strong> fechas completamente o ativo.</li>
+            <li>Servem para separar performance do mercado e movimentos teus.</li>
+            <li>Formato ideal: data, ticker, tipo, quantidade, valor e nota curta.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel tab-view hidden" data-tab-content="data">
+      <div class="panel-head">
+        <div>
+          <h2>Motor de dados</h2>
+          <p>Fonte de verdade separada da interface visual.</p>
+        </div>
+        <span class="pill">Arquitetura: data engine</span>
+      </div>
+      <div class="grid-2">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Data</th><th>Carteira</th><th>Ticker</th><th>Qtd</th><th>Preço atual</th><th>Valor</th><th>P/L total €</th><th>P/L total %</th><th>P/L dia €</th><th>P/L dia %</th><th>Peso %</th></tr></thead>
+            <tbody id="tbodySnapshots"></tbody>
+          </table>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Data</th><th>Valor total</th><th>Caixa</th><th>P/L aberto €</th><th>P/L dia €</th><th>P/L dia %</th></tr></thead>
+            <tbody id="tbodyDailySummary"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="footer-note">O valor em caixa está configurado no motor de dados. Se mudares esse valor, os cards e resumos atualizam automaticamente.</div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Campos profissionais recomendados</h2>
+          <p>Para operar como empresa de trading, o painel deve crescer além de P/L e valor aberto.</p>
+        </div>
+        <span class="pill">Roadmap institucional</span>
+      </div>
+      <div class="grid-2">
+        <div class="notes">
+          <ul>
+            <li><strong>Risco por posição:</strong> stop técnico, risco %, risco em € e R múltiplo aberto.</li>
+            <li><strong>Gestão de capital:</strong> caixa, depósitos, levantamentos, comissões, taxas e dividendos.</li>
+            <li><strong>Execução:</strong> data de entrada, dias em posição, preço médio e notas de tese.</li>
+            <li><strong>Processo:</strong> setup, stage, razão da entrada, razão da saída e qualidade da execução.</li>
+            <li><strong>Desempenho:</strong> P/L diário, semanal, mensal, por setup e por ativo.</li>
+          </ul>
+        </div>
+        <div class="notes">
+          <ul>
+            <li><strong>Campos a adicionar depois:</strong> comissão total, slippage, risco máximo da carteira, exposição setorial e concentração.</li>
+            <li><strong>Campos para auditoria:</strong> screenshots, nota pós-fecho, erro operacional e conformidade com plano.</li>
+            <li><strong>Campos por conta:</strong> EUR/USD, corretora, tipo de conta e estratégia dominante.</li>
+            <li><strong>Campos de governança:</strong> limite de perda diária, limite semanal e limite por posição.</li>
+            <li><strong>Campos de decisão:</strong> manter, aumentar, reduzir, sair, bloquear novas entradas.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const database = {
+      meta: { portfolioName: 'Europa EUR', currency: 'EUR', latestDate: '2026-04-10' },
+      cashBalance: 0.00,
+      governance: { dailyLossLimit: 0.00, weeklyLossLimit: 0.00, maxPositionRiskPct: 8.00 },
+      snapshots: [
+        { date:'2026-04-09', portfolio:'EUR', ticker:'DOFG', name:'Dof', qty:1, avgPrice:141.10, currentPrice:138.00, value:12.33, plTotal:-0.33, plPct:-2.61, plDay:null, plDayPct:null, weightPct:15.93, status:'Aberta', stage:'Stage 2', setup:'Clean Trend', stop:130.00, target1:145.00, riskPct:7.87, daysOpen:1 },
+        { date:'2026-04-09', portfolio:'EUR', ticker:'ERIC_A', name:'Ericsson', qty:1, avgPrice:107.60, currentPrice:110.50, value:10.14, plTotal:0.20, plPct:2.01, plDay:null, plDayPct:null, weightPct:13.10, status:'Aberta', stage:'Stage 2', setup:'Clean Trend', stop:101.50, target1:116.00, riskPct:5.67, daysOpen:1 },
+        { date:'2026-04-09', portfolio:'EUR', ticker:'NDX1', name:'Nordex', qty:0.1985, avgPrice:44.82, currentPrice:45.40, value:9.01, plTotal:0.11, plPct:1.24, plDay:null, plDayPct:null, weightPct:11.64, status:'Aberta', stage:'Stage 2', setup:'Pullback', stop:42.20, target1:48.00, riskPct:5.84, daysOpen:1 },
+        { date:'2026-04-09', portfolio:'EUR', ticker:'OMV', name:'OMV', qty:0.1586, avgPrice:62.90, currentPrice:59.10, value:9.37, plTotal:-0.61, plPct:-6.11, plDay:null, plDayPct:null, weightPct:12.10, status:'Aberta', stage:'Stage 2', setup:'Pullback', stop:58.90, target1:66.50, riskPct:6.36, daysOpen:1 },
+        { date:'2026-04-09', portfolio:'EUR', ticker:'PRY', name:'Prysmian', qty:0.0881, avgPrice:113.75, currentPrice:118.70, value:10.46, plTotal:0.44, plPct:4.39, plDay:null, plDayPct:null, weightPct:13.51, status:'Aberta', stage:'Stage 2', setup:'VCP', stop:108.00, target1:125.00, riskPct:5.05, daysOpen:1 },
+        { date:'2026-04-09', portfolio:'EUR', ticker:'SPM', name:'Saipem', qty:2.3907, avgPrice:4.1868, currentPrice:4.1340, value:9.88, plTotal:-0.13, plPct:-1.30, plDay:null, plDayPct:null, weightPct:12.76, status:'Aberta', stage:'Stage 2', setup:'Pullback', stop:3.94, target1:4.45, riskPct:5.90, daysOpen:1 },
+        { date:'2026-04-09', portfolio:'EUR', ticker:'SMSN', name:'Samsung', qty:0.0055, avgPrice:2936.00, currentPrice:3478.00, value:16.23, plTotal:2.16, plPct:15.35, plDay:null, plDayPct:null, weightPct:20.96, status:'Aberta', stage:'Stage 2', setup:'VCP', stop:3200.00, target1:3650.00, riskPct:6.68, daysOpen:1 },
+
+        { date:'2026-04-10', portfolio:'EUR', ticker:'DOFG', name:'Dof', qty:1, avgPrice:141.10, currentPrice:137.80, value:12.30, plTotal:-0.36, plPct:-2.84, plDay:-0.03, plDayPct:-0.24, weightPct:15.83, status:'Aberta', stage:'Stage 2', setup:'Clean Trend', stop:130.00, target1:145.00, riskPct:7.87, daysOpen:2 },
+        { date:'2026-04-10', portfolio:'EUR', ticker:'ERIC_A', name:'Ericsson', qty:1, avgPrice:107.60, currentPrice:110.65, value:10.13, plTotal:0.19, plPct:1.91, plDay:-0.01, plDayPct:-0.10, weightPct:13.03, status:'Aberta', stage:'Stage 2', setup:'Clean Trend', stop:101.50, target1:116.00, riskPct:5.67, daysOpen:2 },
+        { date:'2026-04-10', portfolio:'EUR', ticker:'NDX1', name:'Nordex', qty:0.1985, avgPrice:44.82, currentPrice:45.80, value:9.09, plTotal:0.19, plPct:2.13, plDay:0.08, plDayPct:0.89, weightPct:11.70, status:'Aberta', stage:'Stage 2', setup:'Pullback', stop:42.20, target1:48.00, riskPct:5.84, daysOpen:2 },
+        { date:'2026-04-10', portfolio:'EUR', ticker:'OMV', name:'OMV', qty:0.1586, avgPrice:62.90, currentPrice:59.10, value:9.37, plTotal:-0.61, plPct:-6.11, plDay:0.00, plDayPct:0.00, weightPct:12.06, status:'Aberta', stage:'Stage 2', setup:'Pullback', stop:58.90, target1:66.50, riskPct:6.36, daysOpen:2 },
+        { date:'2026-04-10', portfolio:'EUR', ticker:'PRY', name:'Prysmian', qty:0.0881, avgPrice:113.75, currentPrice:120.05, value:10.58, plTotal:0.56, plPct:5.59, plDay:0.12, plDayPct:1.15, weightPct:13.61, status:'Aberta', stage:'Stage 2', setup:'VCP', stop:108.00, target1:125.00, riskPct:5.05, daysOpen:2 },
+        { date:'2026-04-10', portfolio:'EUR', ticker:'SPM', name:'Saipem', qty:2.3907, avgPrice:4.1868, currentPrice:4.1580, value:9.94, plTotal:-0.07, plPct:-0.70, plDay:0.06, plDayPct:0.61, weightPct:12.79, status:'Aberta', stage:'Stage 2', setup:'Pullback', stop:3.94, target1:4.45, riskPct:5.90, daysOpen:2 },
+        { date:'2026-04-10', portfolio:'EUR', ticker:'SMSN', name:'Samsung', qty:0.0055, avgPrice:2936.00, currentPrice:3494.00, value:16.31, plTotal:2.24, plPct:15.92, plDay:0.08, plDayPct:0.49, weightPct:20.99, status:'Aberta', stage:'Stage 2', setup:'VCP', stop:3200.00, target1:3650.00, riskPct:6.68, daysOpen:2 }
+      ],
+      dailySummary: [
+        { date:'2026-04-09', valueTotal:77.42, cash:0.00, plOpen:1.84, plOpenPct:2.38, plDay:0.00, plDayPct:0.00 },
+        { date:'2026-04-10', valueTotal:77.72, cash:0.00, plOpen:2.15, plOpenPct:2.77, plDay:0.31, plDayPct:0.40 }
+      ],
+      periodSummary: [
+        { period:'Semana atual', valueFinal:77.72, plOpen:2.15, plOpenPct:2.77, plPeriod:0.31, plPeriodPct:0.40, bestTicker:'SMSN', worstTicker:'OMV' },
+        { period:'Mês atual', valueFinal:77.72, plOpen:2.15, plOpenPct:2.77, plPeriod:0.31, plPeriodPct:0.40, bestTicker:'SMSN', worstTicker:'OMV' }
+      ],
+      events: [
+        { date:'2026-04-10', ticker:'PRY', type:'Sem evento', qty:'-', value:'-', note:'Estrutura pronta para futuros registos operacionais.' }
+      ]
+    };
+
+    let currentFilter = 'all';
+
+    function formatNumber(value, decimals=2){ return Number(value).toFixed(decimals); }
+    function money(value){ if(value===null||value===undefined) return '<span class="mono">base</span>'; const sign=value>0?'+':''; return `${sign}€${formatNumber(value)}`; }
+    function pct(value){ if(value===null||value===undefined) return '<span class="mono">base</span>'; const sign=value>0?'+':''; return `${sign}${formatNumber(value)}%`; }
+    function tone(value){ if(value>0) return 'green'; if(value<0) return 'red'; return ''; }
+
+    function latestSnapshots(){
+      const rows = database.snapshots.filter(x => x.date === database.meta.latestDate);
+      if(currentFilter === 'winners') return rows.filter(x => x.plPct > 0);
+      if(currentFilter === 'losers') return rows.filter(x => x.plPct < 0);
+      return rows;
+    }
+    function latestSummary(){ return database.dailySummary.find(x => x.date === database.meta.latestDate); }
+
+    function decisionModel(item){
+      if(item.plPct >= 10) return { state:'Forte', action:'Manter', priority:'Alta', read:'líder da carteira' };
+      if(item.plPct >= 4) return { state:'Forte', action:'Manter/Aumentar', priority:'Alta', read:'estrutura favorável' };
+      if(item.plPct > 0) return { state:'Neutro+', action:'Manter', priority:'Média', read:'ganho moderado' };
+      if(item.plPct > -2) return { state:'Neutro', action:'Vigiar', priority:'Média', read:'perda controlada' };
+      return { state:'Fraco', action:'Rever/Reduzir', priority:'Alta', read:'maior fragilidade atual' };
+    }
+
+    function renderHeader(){
+      document.getElementById('badgePortfolio').textContent = `Carteira: ${database.meta.portfolioName}`;
+      document.getElementById('badgeDate').textContent = `Último fecho: ${database.meta.latestDate}`;
+      document.getElementById('pillOverview').textContent = `Fecho atual: ${database.meta.latestDate}`;
+      document.getElementById('pillToday').textContent = `Snapshot: ${database.meta.latestDate}`;
+    }
+
+    function renderCards(){
+      const rows = latestSnapshots();
+      const sum = latestSummary();
+      const best = [...rows].sort((a,b)=>b.plPct-a.plPct)[0] || {ticker:'-',plPct:0,plTotal:0};
+      const worst = [...rows].sort((a,b)=>a.plPct-b.plPct)[0] || {ticker:'-',plPct:0,plTotal:0};
+      const positives = rows.filter(x=>x.plPct>0).length;
+      const negatives = rows.filter(x=>x.plPct<0).length;
+      const totalAssets = sum.valueTotal + sum.cash;
+      const week = database.periodSummary.find(x=>x.period==='Semana atual');
+      const month = database.periodSummary.find(x=>x.period==='Mês atual');
+      const cards = [
+        { label:'Valor em posições', value:`€${formatNumber(sum.valueTotal)}`, sub:'Capital atualmente aberto', cls:'' },
+        { label:'Valor em caixa', value:`€${formatNumber(sum.cash)}`, sub:'Confirmado: caixa a zero', cls:'cyan' },
+        { label:'Total carteira', value:`€${formatNumber(totalAssets)}`, sub:'Posições abertas + caixa', cls:'' },
+        { label:'P/L aberto €', value:money(sum.plOpen), sub:'Resultado total aberto', cls:tone(sum.plOpen) },
+        { label:'P/L diário €', value:money(sum.plDay), sub:'Fecho vs. fecho anterior', cls:tone(sum.plDay||0) },
+        { label:'P/L semanal €', value:money(week.plPeriod), sub:pct(week.plPeriodPct), cls:tone(week.plPeriod||0) },
+        { label:'P/L mensal €', value:money(month.plPeriod), sub:pct(month.plPeriodPct), cls:tone(month.plPeriod||0) },
+        { label:'Melhor ativo', value:best.ticker, sub:`${pct(best.plPct)} | ${money(best.plTotal)}`, cls:'green' },
+        { label:'Pior ativo', value:worst.ticker, sub:`${pct(worst.plPct)} | ${money(worst.plTotal)}`, cls:'red' },
+        { label:'Posições', value:`${rows.length}`, sub:`${positives} verdes | ${negatives} vermelhas`, cls:'' }
+      ];
+      document.getElementById('cardsResumo').innerHTML = cards.map(card => `
+        <div class="card">
+          <div class="label">${card.label}</div>
+          <div class="value ${card.cls}">${card.value}</div>
+          <div class="sub">${card.sub}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderQuickAndQuality(){
+      const rows = latestSnapshots();
+      const positives = rows.filter(x=>x.plPct>0);
+      const negatives = rows.filter(x=>x.plPct<0);
+      const top3Weight = [...rows].sort((a,b)=>b.weightPct-a.weightPct).slice(0,3).reduce((s,x)=>s+x.weightPct,0);
+      const totalProfit = positives.reduce((s,x)=>s+x.plTotal,0);
+      const totalLoss = negatives.reduce((s,x)=>s+Math.abs(x.plTotal),0);
+      const avgGain = positives.length ? positives.reduce((s,x)=>s+x.plPct,0)/positives.length : 0;
+      const avgLoss = negatives.length ? negatives.reduce((s,x)=>s+x.plPct,0)/negatives.length : 0;
+      const avgRisk = rows.length ? rows.reduce((s,x)=>s+(x.riskPct||0),0)/rows.length : 0;
+      const quality = [
+        `Posições em lucro: <strong>${positives.length}</strong> de <strong>${rows.length}</strong>.`,
+        `Posições em perda: <strong>${negatives.length}</strong> de <strong>${rows.length}</strong>.`,
+        `Concentração dos 3 maiores pesos: <strong>${formatNumber(top3Weight)}%</strong>.`,
+        `Lucro total dos vencedores: <strong>€${formatNumber(totalProfit)}</strong>.`,
+        `Perda total dos perdedores: <strong>€${formatNumber(totalLoss)}</strong>.`,
+        `Ganho médio das posições vencedoras: <strong>${formatNumber(avgGain)}%</strong>.`,
+        `Perda média das posições perdedoras: <strong>${formatNumber(avgLoss)}%</strong>.`,
+        `Risco médio por posição: <strong>${formatNumber(avgRisk)}%</strong>.`
+      ];
+      document.getElementById('qualityMetrics').innerHTML = quality.map(x=>`<li>${x}</li>`).join('');
+      const quick = [
+        `Total em carteira: <strong>€${formatNumber(latestSummary().valueTotal + latestSummary().cash)}</strong>.`,
+        `P/L diário: <strong>${money(latestSummary().plDay)}</strong>.`,
+        `P/L semanal: <strong>${money(database.periodSummary[0].plPeriod)}</strong>.`,
+        `Ativo mais forte: <strong>${[...rows].sort((a,b)=>b.plPct-a.plPct)[0]?.ticker || '-'}</strong>.`,
+        `Ativo a rever: <strong>${[...rows].sort((a,b)=>a.plPct-b.plPct)[0]?.ticker || '-'}</strong>.`,
+        `Risco médio atual da carteira: <strong>${formatNumber(avgRisk)}%</strong>.`
+      ];
+      document.getElementById('quickSummary').innerHTML = quick.map(x=>`<li>${x}</li>`).join('');
+    }
+
+    function renderRankings(){
+      const rows = latestSnapshots();
+      const ranked = [
+        ['Top ganho %',[...rows].sort((a,b)=>b.plPct-a.plPct)[0],x=>pct(x.plPct),'melhor retorno aberto'],
+        ['Top perda %',[...rows].sort((a,b)=>a.plPct-b.plPct)[0],x=>pct(x.plPct),'maior perda aberta'],
+        ['Melhor dia %',[...rows].sort((a,b)=>b.plDayPct-a.plDayPct)[0],x=>pct(x.plDayPct),'melhor evolução diária'],
+        ['Pior dia %',[...rows].sort((a,b)=>a.plDayPct-b.plDayPct)[0],x=>pct(x.plDayPct),'maior deterioração diária'],
+        ['Maior peso',[...rows].sort((a,b)=>b.weightPct-a.weightPct)[0],x=>`${formatNumber(x.weightPct)}%`,'maior concentração'],
+        ['Maior contribuição €',[...rows].sort((a,b)=>b.plTotal-a.plTotal)[0],x=>money(x.plTotal),'maior lucro absoluto']
+      ];
+      document.getElementById('tbodyRankings').innerHTML = ranked.map(([name,item,formatter,read]) => item ? `<tr><td>${name}</td><td>${item.ticker}</td><td>${formatter(item)}</td><td>${read}</td></tr>` : '').join('');
+    }
+
+    function renderToday(){
+      document.getElementById('tbodyToday').innerHTML = latestSnapshots().map(item => `
+        <tr>
+          <td><span class="ticker">${item.ticker}</span><span class="name">${item.name}</span></td>
+          <td>${item.qty}</td>
+          <td>${formatNumber(item.avgPrice)}</td>
+          <td>${formatNumber(item.currentPrice)}</td>
+          <td>${formatNumber(item.value)}</td>
+          <td class="${tone(item.plTotal)}">${formatNumber(item.plTotal)}</td>
+          <td class="${tone(item.plPct)}">${pct(item.plPct)}</td>
+          <td class="${tone(item.plDay||0)}">${item.plDay===null?'<span class="mono">base</span>':formatNumber(item.plDay)}</td>
+          <td class="${tone(item.plDayPct||0)}">${pct(item.plDayPct)}</td>
+          <td>${formatNumber(item.weightPct)}%</td>
+          <td>${item.setup}</td>
+          <td>${item.stage}</td>
+          <td>${formatNumber(item.stop)}</td>
+          <td>${formatNumber(item.target1)}</td>
+          <td>${formatNumber(item.riskPct)}%</td>
+          <td>${item.daysOpen}</td>
+          <td>${item.status}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderDecision(){
+      document.getElementById('tbodyDecision').innerHTML = latestSnapshots().map(item => {
+        const d = decisionModel(item);
+        return `<tr><td>${item.ticker}</td><td>${d.state}</td><td class="${tone(item.plPct)}">${pct(item.plPct)}</td><td>${formatNumber(item.weightPct)}%</td><td>${formatNumber(item.riskPct)}%</td><td>${d.read}</td><td>${d.action}</td><td>${d.priority}</td></tr>`;
+      }).join('');
+    }
+
+    function renderPeriods(){
+      document.getElementById('tbodyPeriodSummary').innerHTML = database.periodSummary.map(item => `
+        <tr>
+          <td>${item.period}</td>
+          <td>${formatNumber(item.valueFinal)}</td>
+          <td class="${tone(item.plOpen)}">${money(item.plOpen)}</td>
+          <td class="${tone(item.plOpenPct)}">${pct(item.plOpenPct)}</td>
+          <td class="${tone(item.plPeriod)}">${money(item.plPeriod)}</td>
+          <td class="${tone(item.plPeriodPct)}">${pct(item.plPeriodPct)}</td>
+          <td>${item.bestTicker}</td>
+          <td>${item.worstTicker}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderEvents(){
+      document.getElementById('tbodyEvents').innerHTML = database.events.map(item => `
+        <tr><td>${item.date}</td><td>${item.ticker}</td><td>${item.type}</td><td>${item.qty}</td><td>${item.value}</td><td>${item.note}</td></tr>
+      `).join('');
+    }
+
+    function renderHistoryMatrix(){
+      const dates = [...new Set(database.snapshots.map(x=>x.date))];
+      const tickers = [...new Set(database.snapshots.map(x=>x.ticker))];
+      let html = '<thead><tr><th class="sticky-left header-cell" rowspan="2">Ativo</th><th class="sticky-left header-cell" rowspan="2" style="left:140px;">Nome</th>' +
+        dates.map(d => `<th class="date-group" colspan="3">${d}</th>`).join('') +
+        '</tr><tr>' + dates.map(()=>'<th>Valor</th><th>P/L %</th><th>P/L dia %</th>').join('') + '</tr></thead><tbody>';
+      tickers.forEach(ticker => {
+        const rows = database.snapshots.filter(x=>x.ticker===ticker);
+        html += `<tr><td class="sticky-left">${ticker}</td><td class="sticky-left" style="left:140px;">${rows[0].name}</td>`;
+        dates.forEach(date => {
+          const item = rows.find(x=>x.date===date);
+          html += item ? `<td>${formatNumber(item.value)}</td><td class="${tone(item.plPct)}">${pct(item.plPct)}</td><td class="${tone(item.plDayPct||0)}">${pct(item.plDayPct)}</td>` : '<td class="mono">-</td><td class="mono">-</td><td class="mono">-</td>';
+        });
+        html += '</tr>';
+      });
+      html += '</tbody>';
+      document.getElementById('historyMatrix').innerHTML = html;
+    }
+
+    function renderDataTables(){
+      document.getElementById('tbodySnapshots').innerHTML = database.snapshots.map(item => `
+        <tr>
+          <td>${item.date}</td><td>${item.portfolio}</td><td>${item.ticker}</td><td>${item.qty}</td>
+          <td>${formatNumber(item.currentPrice)}</td><td>${formatNumber(item.value)}</td>
+          <td class="${tone(item.plTotal)}">${formatNumber(item.plTotal)}</td>
+          <td class="${tone(item.plPct)}">${pct(item.plPct)}</td>
+          <td class="${tone(item.plDay||0)}">${item.plDay===null?'<span class="mono">base</span>':formatNumber(item.plDay)}</td>
+          <td class="${tone(item.plDayPct||0)}">${pct(item.plDayPct)}</td>
+          <td>${formatNumber(item.weightPct)}%</td>
+        </tr>
+      `).join('');
+      document.getElementById('tbodyDailySummary').innerHTML = database.dailySummary.map(item => `
+        <tr>
+          <td>${item.date}</td><td>${formatNumber(item.valueTotal)}</td><td>${formatNumber(item.cash)}</td>
+          <td class="${tone(item.plOpen)}">${money(item.plOpen)}</td>
+          <td class="${tone(item.plDay||0)}">${money(item.plDay)}</td>
+          <td class="${tone(item.plDayPct||0)}">${pct(item.plDayPct)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderCharts(){
+      const daily = database.dailySummary;
+      const eq = document.getElementById('equityChart');
+      const al = document.getElementById('allocationChart');
+      const pl = document.getElementById('dailyPLChart');
+      const eqCtx = eq.getContext('2d');
+      const alCtx = al.getContext('2d');
+      const plCtx = pl.getContext('2d');
+      [eqCtx, alCtx, plCtx].forEach(ctx => ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height));
+      const pad = 32;
+
+      const equityValues = daily.map(x => x.valueTotal + x.cash);
+      const eqMax = Math.max(...equityValues,1), eqMin = Math.min(...equityValues,0);
+      eqCtx.strokeStyle = '#60a5fa'; eqCtx.lineWidth = 2; eqCtx.beginPath();
+      equityValues.forEach((v,i) => {
+        const x = pad + i*((eq.width-pad*2)/Math.max(equityValues.length-1,1));
+        const y = eq.height-pad-((v-eqMin)/Math.max(eqMax-eqMin,1))*(eq.height-pad*2);
+        i===0 ? eqCtx.moveTo(x,y) : eqCtx.lineTo(x,y);
+      });
+      eqCtx.stroke(); eqCtx.fillStyle = '#9bb0d3';
+      daily.forEach((d,i) => {
+        const x = pad + i*((eq.width-pad*2)/Math.max(equityValues.length-1,1));
+        eqCtx.fillText(d.date.slice(5), x-16, eq.height-8);
+      });
+
+      const rows = database.snapshots.filter(x => x.date === database.meta.latestDate);
+      const maxWeight = Math.max(...rows.map(x=>x.weightPct),1);
+      rows.forEach((r,i) => {
+        const y = 18 + i*26;
+        const barW = ((al.width-180)*r.weightPct)/maxWeight;
+        alCtx.fillStyle = '#60a5fa'; alCtx.fillRect(120,y,barW,14);
+        alCtx.fillStyle = '#9bb0d3'; alCtx.fillText(r.ticker,12,y+12); alCtx.fillText(r.weightPct.toFixed(2)+'%',128+barW,y+12);
+      });
+
+      const plValues = daily.map(x => x.plDay || 0);
+      const plMax = Math.max(...plValues,0.01), plMin = Math.min(...plValues,-0.01);
+      const zeroY = pl.height-pad-((0-plMin)/Math.max(plMax-plMin,1))*(pl.height-pad*2);
+      plCtx.strokeStyle = '#64748b'; plCtx.beginPath(); plCtx.moveTo(pad,zeroY); plCtx.lineTo(pl.width-pad,zeroY); plCtx.stroke();
+      plValues.forEach((v,i) => {
+        const slotW = (pl.width-pad*2)/Math.max(plValues.length,1);
+        const x = pad + i*slotW + 18;
+        const h = Math.abs(v/Math.max(Math.abs(plMax),Math.abs(plMin),0.01))*((pl.height-pad*2)/2);
+        const y = v>=0 ? zeroY-h : zeroY;
+        plCtx.fillStyle = v>=0 ? '#22c55e' : '#ef4444';
+        plCtx.fillRect(x,y,Math.max(slotW-36,24),h);
+        plCtx.fillStyle = '#9bb0d3';
+        plCtx.fillText(daily[i].date.slice(5), x-4, pl.height-8);
+        plCtx.fillText(v.toFixed(2), x-2, v>=0 ? y-6 : y+h+14);
+      });
+    }
+
+    function setupTabs(){
+      const buttons = document.querySelectorAll('.tab-btn');
+      const views = document.querySelectorAll('.tab-view');
+      buttons.forEach(btn => btn.addEventListener('click', () => {
+        buttons.forEach(x=>x.classList.remove('active'));
+        btn.classList.add('active');
+        const target = btn.dataset.tab;
+        views.forEach(view => view.classList.toggle('hidden', view.dataset.tabContent !== target));
+      }));
+    }
+
+    function rerenderFilteredViews(){
+      renderCards();
+      renderQuickAndQuality();
+      renderRankings();
+      renderToday();
+      renderDecision();
+    }
+
+    function setupFilters(){
+      document.getElementById('filterAllBtn').addEventListener('click', ()=>{ currentFilter='all'; rerenderFilteredViews(); });
+      document.getElementById('filterWinnersBtn').addEventListener('click', ()=>{ currentFilter='winners'; rerenderFilteredViews(); });
+      document.getElementById('filterLosersBtn').addEventListener('click', ()=>{ currentFilter='losers'; rerenderFilteredViews(); });
+    }
+
+    function setupExport(){
+      document.getElementById('exportJsonBtn').addEventListener('click', ()=>{
+        const payload = JSON.stringify(database, null, 2);
+        const blob = new Blob([payload], {type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `vidanova-carteira-eur-${database.meta.latestDate}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+    }
+
+    function init(){
+      renderHeader();
+      renderCards();
+      renderQuickAndQuality();
+      renderRankings();
+      renderToday();
+      renderDecision();
+      renderPeriods();
+      renderEvents();
+      renderHistoryMatrix();
+      renderDataTables();
+      renderCharts();
+      setupTabs();
+      setupFilters();
+      setupExport();
+    }
+    init();
+  </script>
+</body>
+</html>
