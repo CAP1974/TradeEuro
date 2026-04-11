@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VIDANOVA | TradeEuro Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div>
+        <h1>VIDANOVA | TradeEuro Dashboard</h1>
+        <p>App modular para acompanhar a carteira EUR. Os dados são lidos do ficheiro <code>data.json</code>. Para atualizar a app no futuro, normalmente vais mexer só nesse ficheiro.</p>
+      </div>
+      <div class="badge-row">
+        <div class="badge" id="badgePortfolio">Carteira</div>
+        <div class="badge" id="badgeDate">Último fecho</div>
+        <div class="badge" id="badgeMode">Modo profissional</div>
+      </div>
+    </section>
+
+    <section class="toolbar">
+      <div class="badge-row">
+        <button class="tab-btn active" data-tab="overview">Visão geral</button>
+        <button class="tab-btn" data-tab="day">Tabela do dia</button>
+        <button class="tab-btn" data-tab="history">Histórico</button>
+        <button class="tab-btn" data-tab="decision">Decisão</button>
+        <button class="tab-btn" data-tab="periods">Semana / Mês</button>
+        <button class="tab-btn" data-tab="charts">Gráficos</button>
+        <button class="tab-btn" data-tab="events">Eventos</button>
+        <button class="tab-btn" data-tab="data">Base de dados</button>
+      </div>
+      <div class="badge-row">
+        <button class="action-btn" id="filterAllBtn">Todos</button>
+        <button class="action-btn" id="filterWinnersBtn">Vencedores</button>
+        <button class="action-btn" id="filterLosersBtn">Perdedores</button>
+        <button class="action-btn primary" id="exportJsonBtn">Exportar JSON</button>
+      </div>
+    </section>
+
+    <section class="cards" id="cardsResumo"></section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Hoje em 20 segundos</h2>
+          <p>Faixa de leitura ultra-rápida com os sinais mais críticos do dia.</p>
+        </div>
+        <span class="pill">Resumo instantâneo</span>
+      </div>
+      <div class="notes"><ul id="quickSummary"></ul></div>
+    </section>
+
+    <section class="panel tab-view" data-tab-content="overview">
+      <div class="panel-head">
+        <div>
+          <h2>Resumo executivo</h2>
+          <p>Métricas prioritárias e rankings principais numa única vista.</p>
+        </div>
+        <span class="pill" id="pillOverview"></span>
+      </div>
+      <div class="grid-2">
+        <div class="notes"><ul id="qualityMetrics"></ul></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Ranking</th><th>Ativo</th><th>Valor</th><th>Leitura</th></tr></thead>
+            <tbody id="tbodyRankings"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel tab-view hidden" data-tab-content="day">
+      <div class="panel-head">
+        <div>
+          <h2>Tabela operacional do dia</h2>
+          <p>Focada em comparação, risco, peso, setup e ação.</p>
+        </div>
+        <span class="pill" id="pillToday"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Ativo</th><th>Qtd</th><th>Preço médio</th><th>Preço atual</th><th>Valor</th>
+              <th>P/L total €</th><th>P/L total %</th><th>P/L dia €</th><th>P/L dia %</th>
+              <th>Peso %</th><th>Setup</th><th>Stage</th><th>Stop</th><th>Target 1</th><th>Risk %</th><th>Dias aberto</th><th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyToday"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel tab-view hidden" data-tab-content="history">
+      <div class="panel-head">
+        <div>
+          <h2>Matriz histórica diária</h2>
+          <p>Vista horizontal tipo Excel para leitura multi-dia.</p>
+        </div>
+        <span class="pill">Tipo: matriz Excel</span>
+      </div>
+      <div class="table-wrap"><table id="historyMatrix"></table></div>
+    </section>
+
+    <section class="panel tab-view hidden" data-tab-content="decision">
+      <div class="panel-head">
+        <div>
+          <h2>Quadro de decisão do dia</h2>
+          <p>Bloco curto para ação imediata.</p>
+        </div>
+        <span class="pill">Tipo: operacional</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Ativo</th><th>Estado</th><th>Ganho %</th><th>Peso %</th><th>Risk %</th><th>Leitura</th><th>Ação</th><th>Prioridade</th></tr></thead>
+          <tbody id="tbodyDecision"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel tab-view hidden" data-tab-content="periods">
+      <div class="panel-head">
+        <div>
+          <h2>Resumo semanal e mensal</h2>
+          <p>Agrupamento por período para fechar performance sem perder a leitura diária.</p>
+        </div>
+        <span class="pill">Tipo: períodos</span>
+      </div>
+      <div class="grid-2">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Período</th><th>Valor final</th><th>P/L aberto €</th><th>P/L aberto %</th><th>P/L período €</th><th>P/L período %</th><th>Melhor ativo</th><th>Pior ativo</th></tr></thead>
+            <tbody id="tbodyPeriodSummary"></tbody>
+          </table>
+        </div>
+        <div class="notes">
+          <ul>
+            <li>Semana e mês ficam separados da leitura do dia.</li>
+            <li>O modelo já está preparado para automatizar esses cálculos com mais histórico.</li>
+            <li>Ideal para acompanhar consistência e ritmo da carteira.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel tab-view hidden" data-tab-content="charts">
+      <div class="panel-head">
+        <div>
+          <h2>Gráficos rápidos</h2>
+          <p>Visualizações curtas para evolução, alocação e P/L diário.</p>
+        </div>
+        <span class="pill">Tipo: visual</span>
+      </div>
+      <div class="grid-2 pad18">
+        <div class="panel inner-panel">
+          <div class="panel-head"><div><h2 class="small-title">Evolução do valor total</h2></div></div>
+          <div class="chart-pad"><canvas id="equityChart" width="700" height="220"></canvas></div>
+        </div>
+        <div class="panel inner-panel">
+          <div class="panel-head"><div><h2 class="small-title">Peso por ativo</h2></div></div>
+          <div class="chart-pad"><canvas id="allocationChart" width="700" height="220"></canvas></div>
+        </div>
+      </div>
+      <div class="grid-2 pad18 padtop0">
+        <div class="panel inner-panel">
+          <div class="panel-head"><div><h2 class="small-title">P/L diário do projeto</h2><p class="small-sub">Base do projeto iniciada em 2026-04-09.</p></div></div>
+          <div class="chart-pad"><canvas id="dailyPLChart" width="700" height="220"></canvas></div>
+        </div>
+        <div class="notes">
+          <ul>
+            <li>O gráfico de P/L diário começa no dia base do projeto.</li>
+            <li>09/04 fica como base e 10/04 como primeiro delta real.</li>
+            <li>Com mais dias, o gráfico passa a mostrar consistência, aceleração e travagem.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel tab-view hidden" data-tab-content="events">
+      <div class="panel-head">
+        <div>
+          <h2>Eventos operacionais</h2>
+          <p>Regista alterações que não são movimento puro de mercado.</p>
+        </div>
+        <span class="pill">Tipo: operações</span>
+      </div>
+      <div class="grid-2">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Data</th><th>Ticker</th><th>Tipo</th><th>Qtd</th><th>Valor</th><th>Nota</th></tr></thead>
+            <tbody id="tbodyEvents"></tbody>
+          </table>
+        </div>
+        <div class="notes">
+          <ul>
+            <li><strong>Nova entrada:</strong> abres um ativo novo.</li>
+            <li><strong>Reforço:</strong> aumentas posição num ativo já aberto.</li>
+            <li><strong>Venda parcial:</strong> reduzes parte da posição.</li>
+            <li><strong>Saída total:</strong> fechas completamente o ativo.</li>
+            <li>Servem para separar performance do mercado e movimentos teus.</li>
+            <li>Formato ideal: data, ticker, tipo, quantidade, valor e nota curta.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel tab-view hidden" data-tab-content="data">
+      <div class="panel-head">
+        <div>
+          <h2>Motor de dados</h2>
+          <p>Fonte de verdade separada da interface visual.</p>
+        </div>
+        <span class="pill">Arquitetura: data engine</span>
+      </div>
+      <div class="grid-2">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Data</th><th>Carteira</th><th>Ticker</th><th>Qtd</th><th>Preço atual</th><th>Valor</th><th>P/L total €</th><th>P/L total %</th><th>P/L dia €</th><th>P/L dia %</th><th>Peso %</th></tr></thead>
+            <tbody id="tbodySnapshots"></tbody>
+          </table>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Data</th><th>Valor total</th><th>Caixa</th><th>P/L aberto €</th><th>P/L dia €</th><th>P/L dia %</th></tr></thead>
+            <tbody id="tbodyDailySummary"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="footer-note">O valor em caixa está configurado no ficheiro data.json. Quando alteras os dados, a app lê essa base.</div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Campos profissionais recomendados</h2>
+          <p>Para operar como empresa de trading, o painel deve crescer além de P/L e valor aberto.</p>
+        </div>
+        <span class="pill">Roadmap institucional</span>
+      </div>
+      <div class="grid-2">
+        <div class="notes">
+          <ul>
+            <li><strong>Risco por posição:</strong> stop técnico, risco %, risco em € e R múltiplo aberto.</li>
+            <li><strong>Gestão de capital:</strong> caixa, depósitos, levantamentos, comissões, taxas e dividendos.</li>
+            <li><strong>Execução:</strong> data de entrada, dias em posição, preço médio e notas de tese.</li>
+            <li><strong>Processo:</strong> setup, stage, razão da entrada, razão da saída e qualidade da execução.</li>
+            <li><strong>Desempenho:</strong> P/L diário, semanal, mensal, por setup e por ativo.</li>
+          </ul>
+        </div>
+        <div class="notes">
+          <ul>
+            <li><strong>Campos a adicionar depois:</strong> comissão total, slippage, risco máximo da carteira, exposição setorial e concentração.</li>
+            <li><strong>Campos para auditoria:</strong> screenshots, nota pós-fecho, erro operacional e conformidade com plano.</li>
+            <li><strong>Campos por conta:</strong> EUR/USD, corretora, tipo de conta e estratégia dominante.</li>
+            <li><strong>Campos de governança:</strong> limite de perda diária, limite semanal e limite por posição.</li>
+            <li><strong>Campos de decisão:</strong> manter, aumentar, reduzir, sair, bloquear novas entradas.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
