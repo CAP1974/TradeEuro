@@ -1,14 +1,15 @@
 {
   "meta": {
-    "portfolioName": "European Core Book",
-    "currency": "EUR",
-    "market": "Europe",
-    "latestDate": "2026-04-10",
-    "accountId": "ACC-EUR-XTB-01",
-    "lastUpdatedAt": "2026-04-10T21:45:00Z",
-    "dataSource": "XTB closing screenshots",
-    "updateMethod": "ai-assisted",
-    "updateSessionId": "xtb-close-2026-04-10-eur"
+  "portfolioName": "European Core Book",
+  "currency": "EUR",
+  "market": "Europe",
+  "latestDate": "2026-04-10",
+  "accountId": "EUR",
+  "lastUpdatedAt": "2026-04-10T21:45:00Z",
+  "dataSource": "XTB closing screenshots",
+  "updateMethod": "ai-assisted",
+  "updateSessionId": "xtb-close-2026-04-10-eur"
+}
   },
   "cashBalance": 15240.5,
   "governance": {
