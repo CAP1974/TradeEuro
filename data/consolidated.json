@@ -1,1 +1,46 @@
-
+{
+  "meta": {
+    "latestDate": "2026-04-10",
+    "accounts": ["EUR", "USD"],
+    "consolidationMode": "nonConvertedAggregate",
+    "consolidationNote": "This master layer does not convert EUR and USD automatically. Any aggregate is informational only until an FX layer is defined.",
+    "nonConvertedTotals": {
+      "EUR": 51556.6,
+      "USD": 50678.4
+    }
+  },
+  "accounts": {
+    "EUR": {
+      "accountId": "ACC-EUR-XTB-01",
+      "currency": "EUR"
+    },
+    "USD": {
+      "accountId": "ACC-USD-XTB-01",
+      "currency": "USD"
+    }
+  },
+  "totals": {
+    "positionCountEUR": 5,
+    "positionCountUSD": 6,
+    "cashEUR": 15240.5,
+    "cashUSD": 22980,
+    "plOpenEUR": 326.8,
+    "plOpenUSD": 482.6,
+    "plDayEUR": 696.6,
+    "plDayUSD": 558.4
+  },
+  "alerts": [
+    {
+      "type": "Workflow",
+      "title": "Daily update model is data-first",
+      "message": "After XTB close screenshots, update only the JSON files inside the data folder before committing.",
+      "severity": "good"
+    },
+    {
+      "type": "FX",
+      "title": "Consolidation is not currency-converted",
+      "message": "Do not treat EUR and USD totals as directly additive until a formal FX rule is introduced.",
+      "severity": "warning"
+    }
+  ]
+}
