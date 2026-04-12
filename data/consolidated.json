@@ -1,68 +1,48 @@
 {
   "meta": {
+    "appName": "Institutional Trading Control Center",
+    "version": "1.0.0",
     "latestDate": "2026-04-10",
-    "accounts": ["EUR", "USD"],
-    "consolidationMode": "nonConvertedAggregate",
-    "consolidationNote": "Esta visão master é apenas informacional. EUR e USD não são somados como se fossem a mesma moeda e não existe FX aplicado.",
-    "nonConvertedTotals": {
-      "EUR": 51556.6,
-      "USD": 50678.4
-    },
-    "lastUpdatedAt": "2026-04-10T22:00:00Z",
-    "updateMethod": "ai-assisted"
+    "notes": "Visão agregada não convertida. EUR e USD reais confirmadas."
   },
   "accounts": {
     "EUR": {
-      "accountId": "ACC-EUR-XTB-01",
+      "portfolioName": "Europa EUR",
       "currency": "EUR",
-      "reviewStatus": "confirmed",
-      "lastUpdatedAt": "2026-04-10T21:45:00Z"
+      "latestDate": "2026-04-10",
+      "valueTotal": 77.72,
+      "cash": 0.0,
+      "plOpen": 2.15,
+      "plOpenPct": 2.77,
+      "plDay": 0.31,
+      "plDayPct": 0.4,
+      "positions": 7,
+      "bestTicker": "SMSN",
+      "worstTicker": "OMV",
+      "alerts": 0
     },
     "USD": {
-      "accountId": "ACC-USD-XTB-01",
+      "portfolioName": "USA USD",
       "currency": "USD",
-      "reviewStatus": "confirmed",
-      "lastUpdatedAt": "2026-04-10T21:52:00Z"
+      "latestDate": "2026-04-10",
+      "valueTotal": 134.77,
+      "cash": 0.0,
+      "plOpen": 3.28,
+      "plOpenPct": 2.43,
+      "plDay": 0.21,
+      "plDayPct": 0.16,
+      "positions": 7,
+      "bestTicker": "SNDK",
+      "worstTicker": "ERAS",
+      "alerts": 0
     }
   },
   "totals": {
-    "positionCountEUR": 5,
-    "positionCountUSD": 6,
-    "cashEUR": 15240.5,
-    "cashUSD": 22980,
-    "plOpenEUR": 326.8,
-    "plOpenUSD": 482.6,
-    "plDayEUR": 696.6,
-    "plDayUSD": 558.4,
-    "riskAggregateEUR": 1.39,
-    "riskAggregateUSD": 1.8,
-    "riskAverageEUR": 1.46,
-    "riskAverageUSD": 1.89,
-    "top3ConcentrationEUR": 61.85,
-    "top3ConcentrationUSD": 53.61,
-    "highestRiskTickerEUR": "MC",
-    "highestRiskTickerUSD": "AMZN",
-    "highestRiskPctEUR": 1.95,
-    "highestRiskPctUSD": 2.4,
-    "depositsEUR": 5000,
-    "depositsUSD": 7500,
-    "withdrawalsEUR": 0,
-    "withdrawalsUSD": 0,
-    "realizedPlEUR": 0,
-    "realizedPlUSD": 0
+    "eurValueTotal": 77.72,
+    "usdValueTotal": 134.77,
+    "eurPositions": 7,
+    "usdPositions": 7,
+    "consolidatedViewMode": "non_converted"
   },
-  "alerts": [
-    {
-      "type": "Workflow",
-      "title": "Modelo diário orientado a dados",
-      "message": "Depois do fecho da XTB, a manutenção normal deve mexer apenas nos ficheiros JSON da pasta data.",
-      "severity": "good"
-    },
-    {
-      "type": "FX",
-      "title": "Sem FX aplicado",
-      "message": "A consolidação é apenas informacional e não deve ser interpretada como soma monetária real entre EUR e USD.",
-      "severity": "warning"
-    }
-  ]
+  "alerts": []
 }
