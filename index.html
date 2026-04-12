@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Dashboard institucional de trading multi-conta para GitHub Pages">
+  <title>Institutional Trading Control Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand-kicker">Operational Trading Stack</div>
+        <h1>Institutional Trading Control Center</h1>
+        <p id="appSubtitle">Carregando estrutura operacional...</p>
+      </div>
+      <div class="topbar-actions">
+        <div class="live-badge">
+          <span class="dot"></span>
+          <span id="liveStatus">Data link pending</span>
+        </div>
+        <button id="exportButton" class="button button-primary" type="button">Exportar JSON</button>
+      </div>
+    </header>
+
+    <main class="main-layout">
+      <aside class="sidebar">
+        <section class="sidebar-section">
+          <div class="section-label">Contexto</div>
+          <div id="accountTabs" class="segmented-tabs" aria-label="Selecionar conta"></div>
+        </section>
+
+        <section class="sidebar-section">
+          <div class="section-label">Módulo</div>
+          <div id="sectionTabs" class="nav-list" aria-label="Selecionar módulo"></div>
+        </section>
+
+        <section class="sidebar-section filter-section">
+          <div class="section-label">Filtro Operacional</div>
+          <div id="statusFilters" class="chip-row" aria-label="Filtrar posições"></div>
+        </section>
+
+        <section class="sidebar-section governance-panel" id="sidebarGovernance"></section>
+      </aside>
+
+      <section class="content">
+        <div class="hero-strip">
+          <div>
+            <div class="section-label">Execution View</div>
+            <h2 id="viewTitle">A preparar interface</h2>
+          </div>
+          <div class="hero-meta" id="heroMeta"></div>
+        </div>
+
+        <section id="alertsMount" class="alerts-grid"></section>
+        <section id="contentMount" class="content-stack" aria-live="polite"></section>
+      </section>
+    </main>
+  </div>
+
+  <template id="emptyStateTemplate">
+    <section class="panel empty-state">
+      <h3>Sem dados disponíveis</h3>
+      <p>Não foi possível renderizar esta secção com a informação atual.</p>
+    </section>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
