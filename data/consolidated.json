@@ -1,46 +1,48 @@
 {
   "meta": {
+    "appName": "Institutional Trading Control Center",
+    "version": "1.0.0",
     "latestDate": "2026-04-10",
-    "accounts": ["EUR", "USD"],
-    "consolidationMode": "nonConvertedAggregate",
-    "consolidationNote": "This master layer does not convert EUR and USD automatically. Any aggregate is informational only until an FX layer is defined.",
-    "nonConvertedTotals": {
-      "EUR": 51556.6,
-      "USD": 50678.4
-    }
+    "notes": "Visão agregada não convertida. EUR e USD reais confirmadas."
   },
   "accounts": {
     "EUR": {
-      "accountId": "ACC-EUR-XTB-01",
-      "currency": "EUR"
+      "portfolioName": "Europa EUR",
+      "currency": "EUR",
+      "latestDate": "2026-04-10",
+      "valueTotal": 77.72,
+      "cash": 0.0,
+      "plOpen": 2.15,
+      "plOpenPct": 2.77,
+      "plDay": 0.31,
+      "plDayPct": 0.40,
+      "positions": 7,
+      "bestTicker": "SMSN",
+      "worstTicker": "OMV",
+      "alerts": 0
     },
     "USD": {
-      "accountId": "ACC-USD-XTB-01",
-      "currency": "USD"
+      "portfolioName": "USA USD",
+      "currency": "USD",
+      "latestDate": "2026-04-10",
+      "valueTotal": 134.77,
+      "cash": 0.0,
+      "plOpen": 3.28,
+      "plOpenPct": 2.43,
+      "plDay": 0.21,
+      "plDayPct": 0.16,
+      "positions": 7,
+      "bestTicker": "SNDK",
+      "worstTicker": "ERAS",
+      "alerts": 0
     }
   },
   "totals": {
-    "positionCountEUR": 5,
-    "positionCountUSD": 6,
-    "cashEUR": 15240.5,
-    "cashUSD": 22980,
-    "plOpenEUR": 326.8,
-    "plOpenUSD": 482.6,
-    "plDayEUR": 696.6,
-    "plDayUSD": 558.4
+    "eurValueTotal": 77.72,
+    "usdValueTotal": 134.77,
+    "eurPositions": 7,
+    "usdPositions": 7,
+    "consolidatedViewMode": "non_converted"
   },
-  "alerts": [
-    {
-      "type": "Workflow",
-      "title": "Daily update model is data-first",
-      "message": "After XTB close screenshots, update only the JSON files inside the data folder before committing.",
-      "severity": "good"
-    },
-    {
-      "type": "FX",
-      "title": "Consolidation is not currency-converted",
-      "message": "Do not treat EUR and USD totals as directly additive until a formal FX rule is introduced.",
-      "severity": "warning"
-    }
-  ]
+  "alerts": []
 }
