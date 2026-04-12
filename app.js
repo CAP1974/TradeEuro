@@ -21,6 +21,9 @@ const FILTERS = [
   { id: "losers", label: "Perdedores" }
 ];
 
+const STALE_DAYS_LIMIT = 1;
+const CONCENTRATION_LIMIT = 65;
+
 const state = {
   rawData: null,
   accountView: "MASTER",
@@ -66,11 +69,8 @@ async function loadSource() {
   const responses = await Promise.all(
     Object.entries(endpoints).map(async ([key, url]) => {
       const response = await fetch(url, { cache: "no-store" });
-      if (!response.ok) {
-        throw new Error(`Falha a carregar ${url} com status ${response.status}`);
-      }
-      const json = await response.json();
-      return [key, json];
+      if (!response.ok) throw new Error(`Falha a carregar ${url} com status ${response.status}`);
+      return [key, await response.json()];
     })
   );
 
@@ -84,34 +84,24 @@ function bindEvents() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `trading-dashboard-export-${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `trading-dashboard-v11-${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
     URL.revokeObjectURL(url);
   });
 }
 
 function buildStaticNavigation() {
-  accountTabsMount.innerHTML = ACCOUNT_TABS.map((tab) => `
-    <button type="button" data-account="${tab.id}" class="${tab.id === state.accountView ? "active" : ""}">
-      ${tab.label}
-    </button>
-  `).join("");
-
-  sectionTabsMount.innerHTML = SECTION_TABS.map((tab) => `
-    <button type="button" data-section="${tab.id}" class="${tab.id === state.sectionView ? "active" : ""}">
-      ${tab.label}
-    </button>
-  `).join("");
-
-  filterMount.innerHTML = FILTERS.map((tab) => `
-    <button type="button" data-filter="${tab.id}" class="${tab.id === state.filter ? "active" : ""}">
-      ${tab.label}
-    </button>
-  `).join("");
+  accountTabsMount.innerHTML = ACCOUNT_TABS.map((tab) => navButton("account", tab.id, tab.label, tab.id === state.accountView)).join("");
+  sectionTabsMount.innerHTML = SECTION_TABS.map((tab) => navButton("section", tab.id, tab.label, tab.id === state.sectionView)).join("");
+  filterMount.innerHTML = FILTERS.map((tab) => navButton("filter", tab.id, tab.label, tab.id === state.filter)).join("");
 
   accountTabsMount.addEventListener("click", handleNavClick);
   sectionTabsMount.addEventListener("click", handleNavClick);
   filterMount.addEventListener("click", handleNavClick);
+}
+
+function navButton(type, value, label, active) {
+  return `<button type="button" data-${type}="${value}" class="${active ? "active" : ""}">${label}</button>`;
 }
 
 function handleNavClick(event) {
@@ -122,24 +112,23 @@ function handleNavClick(event) {
     state.accountView = button.dataset.account;
     if (state.accountView === "MASTER") state.filter = "all";
   }
-
   if (button.dataset.section) state.sectionView = button.dataset.section;
   if (button.dataset.filter) state.filter = button.dataset.filter;
 
-  syncTabStates();
   if (state.rawData) state.rawData = enrichData(state.rawData.source);
+  syncTabStates();
   render();
 }
 
 function syncTabStates() {
-  accountTabsMount.querySelectorAll("button").forEach((button) => {
-    button.classList.toggle("active", button.dataset.account === state.accountView);
-  });
-  sectionTabsMount.querySelectorAll("button").forEach((button) => {
-    button.classList.toggle("active", button.dataset.section === state.sectionView);
-  });
-  filterMount.querySelectorAll("button").forEach((button) => {
-    button.classList.toggle("active", button.dataset.filter === state.filter);
+  toggleTabState(accountTabsMount, "account", state.accountView);
+  toggleTabState(sectionTabsMount, "section", state.sectionView);
+  toggleTabState(filterMount, "filter", state.filter);
+}
+
+function toggleTabState(container, key, value) {
+  container.querySelectorAll("button").forEach((button) => {
+    button.classList.toggle("active", button.dataset[key] === value);
   });
 }
 
@@ -148,7 +137,7 @@ function render() {
 
   syncTabStates();
   renderTopMeta();
-  renderGovernancePanel();
+  renderSidebarStatus();
 
   if (state.accountView === "MASTER") {
     renderMasterView();
@@ -156,86 +145,28 @@ function render() {
   }
 
   const account = state.rawData.accounts[state.accountView];
-  alertsMount.innerHTML = renderAlerts(account.metrics.alerts);
-
-  switch (state.sectionView) {
-    case "overview":
-      mount.innerHTML = renderAccountOverview(account);
-      break;
-    case "table":
-      mount.innerHTML = renderDayTable(account);
-      break;
-    case "history":
-      mount.innerHTML = renderHistory(account);
-      break;
-    case "decision":
-      mount.innerHTML = renderDecision(account);
-      break;
-    case "periods":
-      mount.innerHTML = renderPeriods(account);
-      break;
-    case "charts":
-      mount.innerHTML = renderChartsSection(account);
-      break;
-    case "events":
-      mount.innerHTML = renderEvents(account);
-      break;
-    case "database":
-      mount.innerHTML = renderDatabase(account);
-      break;
-    default:
-      mount.innerHTML = document.getElementById("emptyStateTemplate").innerHTML;
-  }
-
+  alertsMount.innerHTML = renderAlertsCenter(account.metrics.alerts, `${account.meta.portfolioName} | Centro de Alertas`);
+  mount.innerHTML = renderAccountSection(account);
   requestAnimationFrame(() => drawVisibleCharts(account));
 }
 
 function renderMasterView() {
   const consolidated = state.rawData.consolidated;
-  alertsMount.innerHTML = renderAlerts(consolidated.alerts);
-
-  switch (state.sectionView) {
-    case "overview":
-      mount.innerHTML = renderMasterOverview(consolidated);
-      break;
-    case "table":
-      mount.innerHTML = renderMasterTable(consolidated);
-      break;
-    case "history":
-      mount.innerHTML = renderMasterHistory(consolidated);
-      break;
-    case "decision":
-      mount.innerHTML = renderMasterDecision(consolidated);
-      break;
-    case "periods":
-      mount.innerHTML = renderMasterPeriods(consolidated);
-      break;
-    case "charts":
-      mount.innerHTML = renderMasterChartsSection();
-      break;
-    case "events":
-      mount.innerHTML = renderMasterEvents(consolidated);
-      break;
-    case "database":
-      mount.innerHTML = renderMasterDatabase();
-      break;
-    default:
-      mount.innerHTML = document.getElementById("emptyStateTemplate").innerHTML;
-  }
-
+  alertsMount.innerHTML = renderAlertsCenter(consolidated.alerts, "Centro de Alertas Consolidado");
+  mount.innerHTML = renderMasterSection(consolidated);
   requestAnimationFrame(() => drawMasterCharts(consolidated));
 }
 
 function renderTopMeta() {
   const latestDate = state.rawData.source.consolidated.meta.latestDate;
-  subtitleMount.textContent = "Front-end estável | Dados em JSON por conta | Atualização diária assistida por IA";
-  liveStatusMount.textContent = `Data folder linked | ${formatDateLong(latestDate)}`;
+  subtitleMount.textContent = "Dashboard institucional V11 | risco, processo, governança e manutenção diária assistida por IA";
+  liveStatusMount.textContent = `Dados sincronizados | ${formatDateLong(latestDate)}`;
 
   if (state.accountView === "MASTER") {
-    viewTitleMount.textContent = "Master Overview";
+    viewTitleMount.textContent = "Visão Consolidada";
     heroMetaMount.innerHTML = [
-      heroPill("3 JSONs", "manutenção diária"),
-      heroPill("EUR + USD", "contas isoladas"),
+      heroPill("3 JSONs", "fonte operacional"),
+      heroPill("EUR e USD", "isolamento total"),
       heroPill(formatDateLong(latestDate), "último fecho")
     ].join("");
     return;
@@ -246,115 +177,233 @@ function renderTopMeta() {
   heroMetaMount.innerHTML = [
     heroPill(formatCurrency(account.metrics.latest.valueTotal, account.meta.currency), "valor total"),
     heroPill(`${account.metrics.latest.positionsCount} posições`, "livro aberto"),
-    heroPill(formatDateLong(account.meta.latestDate), "último fecho")
+    heroPill(account.integrity.reviewStatusLabel, "estado de revisão")
   ].join("");
 }
 
-function renderGovernancePanel() {
+function renderSidebarStatus() {
   if (state.accountView === "MASTER") {
-    const meta = state.rawData.source.consolidated.meta;
+    const consolidated = state.rawData.consolidated;
     governanceMount.innerHTML = `
-      <div class="section-label">Fluxo diário</div>
-      <h3>Operação assistida por IA</h3>
-      <ul>
-        <li>Receber screenshots do fecho da XTB.</li>
-        <li>A IA atualiza apenas data/eur.json, data/usd.json e data/consolidated.json.</li>
-        <li>Commit simples no GitHub para atualizar o site.</li>
-        <li>Última consolidação: ${formatDateLong(meta.latestDate)}.</li>
-      </ul>
+      <div class="section-label">Estado do Sistema</div>
+      <h3>Monitorização Master</h3>
+      <div class="status-list">
+        ${renderStatusCard("Sistema", consolidated.systemStatus.label, consolidated.systemStatus.detail)}
+        ${renderStatusCard("Validação", consolidated.validationStatus.label, consolidated.validationStatus.detail)}
+        ${renderStatusCard("Última atualização", formatDateTime(consolidated.meta.lastUpdatedAt), consolidated.meta.updateMethod)}
+        ${renderStatusCard("Próxima ação", consolidated.nextAction.label, consolidated.nextAction.detail)}
+      </div>
     `;
     return;
   }
 
   const account = state.rawData.accounts[state.accountView];
   governanceMount.innerHTML = `
-    <div class="section-label">Governança</div>
+    <div class="section-label">Estado do Sistema</div>
     <h3>${account.meta.accountId}</h3>
-    <ul>
-      <li>Perda máxima diária: ${formatCurrency(account.governance.dailyLossLimit, account.meta.currency)}</li>
-      <li>Perda máxima semanal: ${formatCurrency(account.governance.weeklyLossLimit, account.meta.currency)}</li>
-      <li>Risco máximo por posição: ${formatPercent(account.governance.maxPositionRiskPct)}</li>
-      <li>Risco agregado: ${formatPercent(account.metrics.aggregatedRiskPct)}</li>
-    </ul>
+    <div class="status-list">
+      ${renderStatusCard("Sistema", account.systemStatus.label, account.systemStatus.detail)}
+      ${renderStatusCard("Validação", account.validationStatus.label, account.validationStatus.detail)}
+      ${renderStatusCard("Última atualização", formatDateTime(account.meta.lastUpdatedAt), account.meta.updateMethod)}
+      ${renderStatusCard("Próxima ação", account.nextAction.label, account.nextAction.detail)}
+    </div>
   `;
 }
 
-function renderAlerts(alerts) {
-  if (!alerts.length) return "";
+function renderStatusCard(title, value, detail) {
+  return `
+    <article class="status-card">
+      <div class="section-label">${title}</div>
+      <strong>${value}</strong>
+      <div class="muted small">${detail}</div>
+    </article>
+  `;
+}
+
+function renderAlertsCenter(alerts, title) {
   return alerts.map((alert) => `
     <article class="alert-card ${alert.severity}">
-      <div class="section-label">${alert.type}</div>
+      <div class="section-label">${title}</div>
       <h3>${alert.title}</h3>
       <p>${alert.message}</p>
     </article>
   `).join("");
 }
 
+function renderAccountSection(account) {
+  switch (state.sectionView) {
+    case "overview":
+      return renderAccountOverview(account);
+    case "table":
+      return renderDayTable(account);
+    case "history":
+      return renderHistory(account);
+    case "decision":
+      return renderDecision(account);
+    case "periods":
+      return renderPeriods(account);
+    case "charts":
+      return renderChartsSection(account);
+    case "events":
+      return renderEvents(account);
+    case "database":
+      return renderDatabase(account);
+    default:
+      return document.getElementById("emptyStateTemplate").innerHTML;
+  }
+}
+
+function renderMasterSection(consolidated) {
+  switch (state.sectionView) {
+    case "overview":
+      return renderMasterOverview(consolidated);
+    case "table":
+      return renderMasterTable(consolidated);
+    case "history":
+      return renderMasterHistory(consolidated);
+    case "decision":
+      return renderMasterDecision(consolidated);
+    case "periods":
+      return renderMasterPeriods(consolidated);
+    case "charts":
+      return renderMasterChartsSection();
+    case "events":
+      return renderMasterEvents(consolidated);
+    case "database":
+      return renderMasterDatabase();
+    default:
+      return document.getElementById("emptyStateTemplate").innerHTML;
+  }
+}
+
 function renderAccountOverview(account) {
   const latest = account.metrics.latest;
   return `
+    <section class="stack-gap">
+      <section class="panel">
+        <div class="section-label">Dashboard Executivo</div>
+        <div class="kpi-grid">
+          ${renderMetricCard("Posições abertas", formatCurrency(latest.openValue, account.meta.currency), `${latest.positionsCount} posições ativas`)}
+          ${renderMetricCard("Caixa", formatCurrency(latest.cash, account.meta.currency), "liquidez disponível")}
+          ${renderMetricCard("Valor total", formatCurrency(latest.valueTotal, account.meta.currency), account.meta.market)}
+          ${renderMetricCard("P/L aberto", signedCurrency(latest.plOpen, account.meta.currency), signedPercent(latest.plOpenPct))}
+          ${renderMetricCard("P/L diário", signedCurrency(latest.plDay, account.meta.currency), signedPercent(latest.plDayPct))}
+          ${renderMetricCard("P/L semanal", signedCurrency(account.metrics.weekly.plPeriod, account.meta.currency), signedPercent(account.metrics.weekly.plPeriodPct))}
+          ${renderMetricCard("P/L mensal", signedCurrency(account.metrics.monthly.plPeriod, account.meta.currency), signedPercent(account.metrics.monthly.plPeriodPct))}
+          ${renderMetricCard("Melhor ativo", latest.bestTicker, signedPercent(latest.bestPct))}
+          ${renderMetricCard("Pior ativo", latest.worstTicker, signedPercent(latest.worstPct))}
+          ${renderMetricCard("Vencedoras", `${latest.winners}`, `${latest.losers} perdedoras`)}
+          ${renderMetricCard("Risco médio", formatPercent(account.metrics.averageRiskPct), "média por posição")}
+          ${renderMetricCard("Exposição", formatPercent(account.metrics.exposurePct), `top 3: ${formatPercent(account.metrics.concentrationTop3)}`)}
+        </div>
+      </section>
+
+      <section class="summary-grid">
+        <article class="summary-card">
+          <div class="section-label">Hoje em 20 segundos</div>
+          <h3>${account.meta.portfolioName}</h3>
+          <ul class="today-list">
+            <li><span>Total da conta</span><strong>${formatCurrency(latest.valueTotal, account.meta.currency)}</strong></li>
+            <li><span>P/L diário</span><strong class="${valueClass(latest.plDay)}">${signedCurrency(latest.plDay, account.meta.currency)}</strong></li>
+            <li><span>P/L semanal</span><strong class="${valueClass(account.metrics.weekly.plPeriod)}">${signedCurrency(account.metrics.weekly.plPeriod, account.meta.currency)}</strong></li>
+            <li><span>Ativo mais forte</span><strong>${latest.bestTicker}</strong></li>
+            <li><span>Ativo a rever</span><strong>${latest.worstTicker}</strong></li>
+            <li><span>Risco médio</span><strong>${formatPercent(account.metrics.averageRiskPct)}</strong></li>
+          </ul>
+        </article>
+
+        <article class="summary-card">
+          <div class="section-label">Conformidade Operacional</div>
+          <h3>Leitura institucional</h3>
+          <ul class="compact-list">
+            <li><span>Lucro total vencedores</span><strong class="positive">${signedCurrency(account.metrics.winnerProfit, account.meta.currency)}</strong></li>
+            <li><span>Perda total perdedores</span><strong class="negative">${signedCurrency(account.metrics.loserLoss, account.meta.currency)}</strong></li>
+            <li><span>Duração média</span><strong>${account.metrics.averageDaysOpen.toFixed(1)} dias</strong></li>
+            <li><span>Qualidade da execução</span><strong>${account.process.executionQuality}</strong></li>
+            <li><span>Estado da tese</span><strong>${account.process.thesisStatus}</strong></li>
+            <li><span>Compliance com plano</span><strong>${account.process.planCompliance}</strong></li>
+          </ul>
+        </article>
+      </section>
+
+      ${renderRiskDashboard(account)}
+      ${renderCapitalFlow(account)}
+      ${renderProcessCompliance(account)}
+
+      <section class="two-column-grid">
+        <article class="table-card">
+          <div class="section-label">Tabela rápida</div>
+          <h3>Principais posições do dia</h3>
+          ${renderSnapshotTable(account, true)}
+        </article>
+        <article class="summary-card">
+          <div class="section-label">Integridade do Fecho</div>
+          <h3>Controlo do update diário</h3>
+          <ul class="compact-list">
+            <li><span>Fonte</span><strong>${account.meta.dataSource}</strong></li>
+            <li><span>Método</span><strong>${account.meta.updateMethod}</strong></li>
+            <li><span>Sessão</span><strong>${account.meta.updateSessionId}</strong></li>
+            <li><span>Validação</span><strong>${account.integrity.validationStatusLabel}</strong></li>
+            <li><span>Warnings</span><strong>${account.integrity.warnings.length}</strong></li>
+            <li><span>Próxima ação</span><strong>${account.nextAction.label}</strong></li>
+          </ul>
+        </article>
+      </section>
+    </section>
+  `;
+}
+
+function renderRiskDashboard(account) {
+  return `
     <section class="panel">
-      <div class="section-label">Dashboard Executivo</div>
-      <div class="grid-kpis">
-        ${renderMetricCard("Posições abertas", formatCurrency(latest.openValue, account.meta.currency), `${latest.positionsCount} posições ativas`)}
-        ${renderMetricCard("Caixa", formatCurrency(latest.cash, account.meta.currency), "liquidez disponível")}
-        ${renderMetricCard("Valor total", formatCurrency(latest.valueTotal, account.meta.currency), account.meta.market)}
-        ${renderMetricCard("P/L aberto", signedCurrency(latest.plOpen, account.meta.currency), signedPercent(latest.plOpenPct))}
-        ${renderMetricCard("P/L diário", signedCurrency(latest.plDay, account.meta.currency), signedPercent(latest.plDayPct))}
-        ${renderMetricCard("P/L semanal", signedCurrency(account.metrics.weekly.plPeriod, account.meta.currency), signedPercent(account.metrics.weekly.plPeriodPct))}
-        ${renderMetricCard("P/L mensal", signedCurrency(account.metrics.monthly.plPeriod, account.meta.currency), signedPercent(account.metrics.monthly.plPeriodPct))}
-        ${renderMetricCard("Melhor ativo", latest.bestTicker, signedPercent(latest.bestPct))}
-        ${renderMetricCard("Pior ativo", latest.worstTicker, signedPercent(latest.worstPct))}
-        ${renderMetricCard("Posições", `${latest.positionsCount}`, `${latest.winners} vencedoras / ${latest.losers} perdedoras`)}
-        ${renderMetricCard("Risco médio", formatPercent(account.metrics.averageRiskPct), "média das posições")}
-        ${renderMetricCard("Exposição", formatPercent(account.metrics.exposurePct), `top 3 ${formatPercent(account.metrics.concentrationTop3)}`)}
+      <div class="section-label">Risk Dashboard</div>
+      <h3>Painel de risco da conta ${account.meta.currency}</h3>
+      <div class="risk-grid">
+        ${renderMetricCard("Risco total", formatPercent(account.metrics.aggregatedRiskPct), "ponderado pelo peso")}
+        ${renderMetricCard("Risco médio", formatPercent(account.metrics.averageRiskPct), "por posição")}
+        ${renderMetricCard("Posição mais arriscada", account.metrics.mostRiskyTicker, formatPercent(account.metrics.mostRiskyRiskPct))}
+        ${renderMetricCard("Top 3 pesos", formatPercent(account.metrics.concentrationTop3), "concentração")}
+        ${renderMetricCard("Drawdown atual", signedPercent(account.metrics.currentDrawdownPct), signedCurrency(account.metrics.currentDrawdownValue, account.meta.currency))}
+        ${renderMetricCard("Limite diário", formatCurrency(account.governance.dailyLossLimit, account.meta.currency), "governança")}
+        ${renderMetricCard("Limite semanal", formatCurrency(account.governance.weeklyLossLimit, account.meta.currency), "governança")}
+        ${renderMetricCard("Exposição aberta", formatCurrency(account.metrics.latest.openValue, account.meta.currency), formatPercent(account.metrics.exposurePct))}
       </div>
     </section>
+  `;
+}
 
-    <section class="summary-grid">
-      <article class="summary-card today-card">
-        <div class="section-label">Hoje em 20 segundos</div>
-        <h3>${account.meta.portfolioName}</h3>
-        <ul>
-          <li><span>Total da conta</span><strong>${formatCurrency(latest.valueTotal, account.meta.currency)}</strong></li>
-          <li><span>P/L diário</span><strong class="${valueClass(latest.plDay)}">${signedCurrency(latest.plDay, account.meta.currency)}</strong></li>
-          <li><span>P/L semanal</span><strong class="${valueClass(account.metrics.weekly.plPeriod)}">${signedCurrency(account.metrics.weekly.plPeriod, account.meta.currency)}</strong></li>
-          <li><span>Ativo mais forte</span><strong>${latest.bestTicker}</strong></li>
-          <li><span>Ativo a rever</span><strong>${latest.worstTicker}</strong></li>
-          <li><span>Risco médio</span><strong>${formatPercent(account.metrics.averageRiskPct)}</strong></li>
-        </ul>
-      </article>
-
-      <article class="summary-card">
-        <div class="section-label">Camada operacional</div>
-        <h3>Resumo de manutenção</h3>
-        <ul class="compact-list">
-          <li><span>Lucro total vencedores</span><strong class="positive">${signedCurrency(account.metrics.winnerProfit, account.meta.currency)}</strong></li>
-          <li><span>Perda total perdedores</span><strong class="negative">${signedCurrency(account.metrics.loserLoss, account.meta.currency)}</strong></li>
-          <li><span>Duração média</span><strong>${account.metrics.averageDaysOpen.toFixed(1)} dias</strong></li>
-          <li><span>Maior peso</span><strong>${account.metrics.maxWeightTicker} (${formatPercent(account.metrics.maxWeightPct)})</strong></li>
-          <li><span>Setup dominante</span><strong>${account.metrics.dominantSetup}</strong></li>
-          <li><span>Status governança</span><strong>${account.metrics.governanceStatus}</strong></li>
-        </ul>
-      </article>
+function renderCapitalFlow(account) {
+  return `
+    <section class="panel">
+      <div class="section-label">Capital Flow</div>
+      <h3>Fluxo de capital</h3>
+      <div class="flow-grid">
+        ${renderMetricCard("Caixa atual", formatCurrency(account.metrics.latest.cash, account.meta.currency), "liquidez")}
+        ${renderMetricCard("Depósitos", formatCurrency(account.capitalFlow.deposits, account.meta.currency), "capital injetado")}
+        ${renderMetricCard("Levantamentos", formatCurrency(account.capitalFlow.withdrawals, account.meta.currency), "capital removido")}
+        ${renderMetricCard("Lucro aberto", signedCurrency(account.metrics.latest.plOpen, account.meta.currency), signedPercent(account.metrics.latest.plOpenPct))}
+        ${renderMetricCard("Lucro realizado", signedCurrency(account.capitalFlow.realizedPl, account.meta.currency), "valor compatível V11")}
+        ${renderMetricCard("Fluxo líquido", signedCurrency(account.capitalFlow.netFlow, account.meta.currency), "depósitos - levantamentos")}
+      </div>
     </section>
+  `;
+}
 
-    <section class="two-column-grid">
-      <article class="table-card">
-        <div class="section-label">Tabela rápida</div>
-        <h3>Top posições de hoje</h3>
-        ${renderSnapshotTable(account, true)}
-      </article>
-      <article class="summary-card">
-        <div class="section-label">Workflow diário</div>
-        <h3>Passos práticos</h3>
-        <ul class="compact-list">
-          <li><span>1. Receber screenshots</span><strong>XTB close</strong></li>
-          <li><span>2. Atualizar dados</span><strong>${account.meta.currency === "EUR" ? "data/eur.json" : "data/usd.json"}</strong></li>
-          <li><span>3. Rever alertas</span><strong>${account.metrics.alerts.length} alertas</strong></li>
-          <li><span>4. Commit</span><strong>GitHub Pages</strong></li>
-        </ul>
-      </article>
+function renderProcessCompliance(account) {
+  return `
+    <section class="panel">
+      <div class="section-label">Process / Compliance</div>
+      <h3>Processo e governança operacional</h3>
+      <div class="process-grid">
+        ${renderMetricCard("VCP", `${account.process.setupCounts.VCP}`, "posições por setup")}
+        ${renderMetricCard("Clean Trend", `${account.process.setupCounts["Clean Trend"]}`, "posições por setup")}
+        ${renderMetricCard("Pullback", `${account.process.setupCounts.Pullback}`, "posições por setup")}
+        ${renderMetricCard("Compliance com plano", account.process.planCompliance, "estado do processo")}
+        ${renderMetricCard("Qualidade da execução", account.process.executionQuality, "disciplina do dia")}
+        ${renderMetricCard("Estado da tese", account.process.thesisStatus, "leitura dominante")}
+        ${renderMetricCard("Eventos do dia", `${account.process.eventsToday}`, "movimentos operacionais")}
+        ${renderMetricCard("Posições por setup", `${account.process.activeSetupCount}`, "setups ativos")}
+      </div>
     </section>
   `;
 }
@@ -384,22 +433,10 @@ function renderHistory(account) {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>Valor</td>
-              ${account.dailySummary.map((row) => `<td>${formatCurrency(row.valueTotal, account.meta.currency)}</td>`).join("")}
-            </tr>
-            <tr>
-              <td>P/L aberto %</td>
-              ${account.dailySummary.map((row) => `<td class="${valueClass(row.plOpenPct)}">${signedPercent(row.plOpenPct)}</td>`).join("")}
-            </tr>
-            <tr>
-              <td>P/L dia %</td>
-              ${account.dailySummary.map((row) => `<td class="${valueClass(row.plDayPct)}">${signedPercent(row.plDayPct)}</td>`).join("")}
-            </tr>
-            <tr>
-              <td>Caixa</td>
-              ${account.dailySummary.map((row) => `<td>${formatCurrency(row.cash, account.meta.currency)}</td>`).join("")}
-            </tr>
+            <tr><td>Valor</td>${account.dailySummary.map((row) => `<td>${formatCurrency(row.valueTotal, account.meta.currency)}</td>`).join("")}</tr>
+            <tr><td>P/L aberto %</td>${account.dailySummary.map((row) => `<td class="${valueClass(row.plOpenPct)}">${signedPercent(row.plOpenPct)}</td>`).join("")}</tr>
+            <tr><td>P/L dia %</td>${account.dailySummary.map((row) => `<td class="${valueClass(row.plDayPct)}">${signedPercent(row.plDayPct)}</td>`).join("")}</tr>
+            <tr><td>Caixa</td>${account.dailySummary.map((row) => `<td>${formatCurrency(row.cash, account.meta.currency)}</td>`).join("")}</tr>
           </tbody>
         </table>
       </div>
@@ -501,9 +538,7 @@ function renderChartsSection(account) {
         <h3>Peso por ativo</h3>
         <div class="canvas-wrap"><canvas id="allocationChart"></canvas></div>
         <div class="legend-row">
-          ${account.metrics.latestSnapshots.map((item, index) => `
-            <span><i class="legend-dot" style="background:${palette(index)}"></i>${item.ticker}</span>
-          `).join("")}
+          ${account.metrics.latestSnapshots.map((item, index) => `<span><i class="legend-dot" style="background:${palette(index)}"></i>${item.ticker}</span>`).join("")}
         </div>
       </article>
       <article class="chart-card">
@@ -519,7 +554,7 @@ function renderEvents(account) {
   return `
     <section class="table-card">
       <div class="section-label">Eventos operacionais</div>
-      <h3>Entradas, reforços, parciais, saídas e movimentos de caixa</h3>
+      <h3>Entradas, reforços, saídas parciais, saídas totais e caixa</h3>
       <div class="table-shell">
         <table>
           <thead>
@@ -555,17 +590,17 @@ function renderDatabase(account) {
     <section class="db-grid">
       <article class="panel">
         <div class="section-label">Snapshots</div>
-        <h3>${account.meta.currency} raw data</h3>
+        <h3>${account.meta.currency} | posições</h3>
         <pre class="json-box">${escapeHtml(JSON.stringify(account.snapshots, null, 2))}</pre>
       </article>
       <article class="panel">
         <div class="section-label">Resumo diário</div>
-        <h3>Daily summary</h3>
+        <h3>${account.meta.currency} | histórico</h3>
         <pre class="json-box">${escapeHtml(JSON.stringify(account.dailySummary, null, 2))}</pre>
       </article>
       <article class="panel">
         <div class="section-label">Eventos</div>
-        <h3>Operations log</h3>
+        <h3>${account.meta.currency} | operações</h3>
         <pre class="json-box">${escapeHtml(JSON.stringify(account.events, null, 2))}</pre>
       </article>
     </section>
@@ -574,51 +609,83 @@ function renderDatabase(account) {
 
 function renderMasterOverview(consolidated) {
   return `
-    <section class="panel">
-      <div class="section-label">Visão Consolidada</div>
-      <div class="consolidated-grid">
-        ${Object.values(consolidated.accounts).map((account) => `
-          <article class="summary-card">
-            <div class="card-kicker">${account.meta.currency} | ${account.meta.market}</div>
-            <h3>${account.meta.portfolioName}</h3>
-            <ul class="compact-list">
-              <li><span>Valor total</span><strong>${formatCurrency(account.metrics.latest.valueTotal, account.meta.currency)}</strong></li>
-              <li><span>Caixa</span><strong>${formatCurrency(account.metrics.latest.cash, account.meta.currency)}</strong></li>
-              <li><span>P/L diário</span><strong class="${valueClass(account.metrics.latest.plDay)}">${signedCurrency(account.metrics.latest.plDay, account.meta.currency)}</strong></li>
-              <li><span>P/L aberto</span><strong class="${valueClass(account.metrics.latest.plOpen)}">${signedCurrency(account.metrics.latest.plOpen, account.meta.currency)}</strong></li>
-              <li><span>Posições</span><strong>${account.metrics.latest.positionsCount}</strong></li>
-              <li><span>Melhor / pior</span><strong>${account.metrics.latest.bestTicker} / ${account.metrics.latest.worstTicker}</strong></li>
-              <li><span>Alertas</span><strong>${account.metrics.alerts.length}</strong></li>
-            </ul>
-          </article>
-        `).join("")}
-      </div>
-    </section>
+    <section class="stack-gap">
+      <section class="panel">
+        <div class="section-label">Visão Consolidada</div>
+        <div class="consolidated-grid">
+          ${Object.values(consolidated.accounts).map((account) => `
+            <article class="summary-card">
+              <div class="card-kicker">${account.meta.currency} | ${account.meta.market}</div>
+              <h3>${account.meta.portfolioName}</h3>
+              <ul class="compact-list">
+                <li><span>Valor total</span><strong>${formatCurrency(account.metrics.latest.valueTotal, account.meta.currency)}</strong></li>
+                <li><span>Caixa</span><strong>${formatCurrency(account.metrics.latest.cash, account.meta.currency)}</strong></li>
+                <li><span>P/L diário</span><strong class="${valueClass(account.metrics.latest.plDay)}">${signedCurrency(account.metrics.latest.plDay, account.meta.currency)}</strong></li>
+                <li><span>P/L aberto</span><strong class="${valueClass(account.metrics.latest.plOpen)}">${signedCurrency(account.metrics.latest.plOpen, account.meta.currency)}</strong></li>
+                <li><span>Melhor ativo</span><strong>${account.metrics.latest.bestTicker}</strong></li>
+                <li><span>Pior ativo</span><strong>${account.metrics.latest.worstTicker}</strong></li>
+                <li><span>Posições</span><strong>${account.metrics.latest.positionsCount}</strong></li>
+              </ul>
+            </article>
+          `).join("")}
+        </div>
+      </section>
 
-    <section class="two-column-grid">
-      <article class="summary-card">
-        <div class="section-label">Totais</div>
-        <h3>Agregado não convertido</h3>
-        <ul class="compact-list">
-          <li><span>Total EUR</span><strong>${formatCurrency(consolidated.meta.nonConvertedTotals.EUR, "EUR")}</strong></li>
-          <li><span>Total USD</span><strong>${formatCurrency(consolidated.meta.nonConvertedTotals.USD, "USD")}</strong></li>
-          <li><span>Posições EUR</span><strong>${consolidated.accounts.EUR.metrics.latest.positionsCount}</strong></li>
-          <li><span>Posições USD</span><strong>${consolidated.accounts.USD.metrics.latest.positionsCount}</strong></li>
-          <li><span>Fluxo diário</span><strong>screenshots → JSON → commit</strong></li>
-        </ul>
-      </article>
-      <article class="summary-card">
-        <div class="section-label">Nota</div>
-        <h3>Consolidação consciente</h3>
-        <p class="muted">${consolidated.meta.consolidationNote}</p>
-      </article>
+      <section class="summary-grid">
+        <article class="summary-card">
+          <div class="section-label">Consolidado informacional</div>
+          <h3>Leitura sem mistura monetária</h3>
+          <ul class="compact-list">
+            <li><span>Total EUR</span><strong>${formatCurrency(consolidated.meta.nonConvertedTotals.EUR, "EUR")}</strong></li>
+            <li><span>Total USD</span><strong>${formatCurrency(consolidated.meta.nonConvertedTotals.USD, "USD")}</strong></li>
+            <li><span>Caixa EUR</span><strong>${formatCurrency(consolidated.totals.cashEUR, "EUR")}</strong></li>
+            <li><span>Caixa USD</span><strong>${formatCurrency(consolidated.totals.cashUSD, "USD")}</strong></li>
+            <li><span>Risco total EUR</span><strong>${formatPercent(consolidated.totals.riskAggregateEUR)}</strong></li>
+            <li><span>Risco total USD</span><strong>${formatPercent(consolidated.totals.riskAggregateUSD)}</strong></li>
+          </ul>
+        </article>
+
+        <article class="summary-card">
+          <div class="section-label">Sem FX aplicado</div>
+          <h3>Nota de interpretação</h3>
+          <p class="muted">${consolidated.meta.consolidationNote}</p>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="section-label">Risk Dashboard</div>
+        <h3>Painel master de risco</h3>
+        <div class="risk-grid">
+          ${renderMetricCard("Risco total EUR", formatPercent(consolidated.totals.riskAggregateEUR), "risk dashboard")}
+          ${renderMetricCard("Risco total USD", formatPercent(consolidated.totals.riskAggregateUSD), "risk dashboard")}
+          ${renderMetricCard("Risco médio EUR", formatPercent(consolidated.totals.riskAverageEUR), "por posição")}
+          ${renderMetricCard("Risco médio USD", formatPercent(consolidated.totals.riskAverageUSD), "por posição")}
+          ${renderMetricCard("Maior risco EUR", consolidated.totals.highestRiskTickerEUR, formatPercent(consolidated.totals.highestRiskPctEUR))}
+          ${renderMetricCard("Maior risco USD", consolidated.totals.highestRiskTickerUSD, formatPercent(consolidated.totals.highestRiskPctUSD))}
+          ${renderMetricCard("Top 3 EUR", formatPercent(consolidated.totals.top3ConcentrationEUR), "concentração")}
+          ${renderMetricCard("Top 3 USD", formatPercent(consolidated.totals.top3ConcentrationUSD), "concentração")}
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-label">Capital Flow</div>
+        <h3>Fluxo de capital por conta</h3>
+        <div class="flow-grid">
+          ${renderMetricCard("Depósitos EUR", formatCurrency(consolidated.totals.depositsEUR, "EUR"), "capital injetado")}
+          ${renderMetricCard("Depósitos USD", formatCurrency(consolidated.totals.depositsUSD, "USD"), "capital injetado")}
+          ${renderMetricCard("Levantamentos EUR", formatCurrency(consolidated.totals.withdrawalsEUR, "EUR"), "capital removido")}
+          ${renderMetricCard("Levantamentos USD", formatCurrency(consolidated.totals.withdrawalsUSD, "USD"), "capital removido")}
+          ${renderMetricCard("Lucro realizado EUR", signedCurrency(consolidated.totals.realizedPlEUR, "EUR"), "compatível V11")}
+          ${renderMetricCard("Lucro realizado USD", signedCurrency(consolidated.totals.realizedPlUSD, "USD"), "compatível V11")}
+        </div>
+      </section>
     </section>
   `;
 }
 
 function renderMasterTable(consolidated) {
   const rows = Object.values(consolidated.accounts).flatMap((account) =>
-    account.metrics.filteredSnapshots.map((row) => ({ ...row, currency: account.meta.currency, portfolioName: account.meta.portfolioName }))
+    account.metrics.filteredSnapshots.map((row) => ({ ...row, portfolioName: account.meta.portfolioName, currency: account.meta.currency }))
   );
 
   return `
@@ -703,7 +770,7 @@ function renderMasterDecision(consolidated) {
         <td>${account.metrics.latest.worstTicker}</td>
         <td>${topRisk ? topRisk.ticker : "-"}</td>
         <td>${account.metrics.governanceStatus}</td>
-        <td>${account.metrics.alerts.length ? "Rever" : "Em linha"}</td>
+        <td>${account.nextAction.label}</td>
       </tr>
     `;
   }).join("");
@@ -711,7 +778,7 @@ function renderMasterDecision(consolidated) {
   return `
     <section class="table-card">
       <div class="section-label">Decisão consolidada</div>
-      <h3>Alertas por conta</h3>
+      <h3>Alertas e ação sugerida por conta</h3>
       <div class="table-shell">
         <table>
           <thead>
@@ -722,7 +789,7 @@ function renderMasterDecision(consolidated) {
               <th>A rever</th>
               <th>Maior risco</th>
               <th>Governança</th>
-              <th>Ação</th>
+              <th>Próxima ação</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -914,7 +981,7 @@ function renderSnapshotTable(account, compact) {
 
 function renderMetricCard(label, value, detail) {
   return `
-    <article class="metric-card">
+    <article class="kpi-card">
       <div class="metric-label">${label}</div>
       <div class="metric-value">${value}</div>
       <div class="metric-detail">${detail}</div>
@@ -935,11 +1002,7 @@ function enrichData(source) {
   return {
     source,
     accounts,
-    consolidated: {
-      ...source.consolidated,
-      accounts,
-      alerts: buildMasterAlerts(source.consolidated, accounts)
-    }
+    consolidated: buildConsolidatedModel(source.consolidated, accounts)
   };
 }
 
@@ -950,9 +1013,11 @@ function buildAccountModel(accountData) {
   const filteredSnapshots = applyFilter(latestSnapshots, state.filter);
   const winnerRows = latestSnapshots.filter((row) => row.plTotal >= 0);
   const loserRows = latestSnapshots.filter((row) => row.plTotal < 0);
-  const best = [...latestSnapshots].sort((a, b) => b.plPct - a.plPct)[0];
-  const worst = [...latestSnapshots].sort((a, b) => a.plPct - b.plPct)[0];
-  const maxWeightRow = [...latestSnapshots].sort((a, b) => b.weightPct - a.weightPct)[0];
+  const sortedByPct = [...latestSnapshots].sort((a, b) => b.plPct - a.plPct);
+  const sortedByRisk = [...latestSnapshots].sort((a, b) => b.riskPct - a.riskPct);
+  const best = sortedByPct[0];
+  const worst = [...sortedByPct].reverse()[0];
+  const mostRisky = sortedByRisk[0];
   const averageRiskPct = average(latestSnapshots.map((row) => row.riskPct));
   const averageDaysOpen = average(latestSnapshots.map((row) => row.daysOpen));
   const concentrationTop3 = latestSnapshots.map((row) => row.weightPct).sort((a, b) => b - a).slice(0, 3).reduce((sum, value) => sum + value, 0);
@@ -960,10 +1025,36 @@ function buildAccountModel(accountData) {
   const aggregatedRiskPct = latestSnapshots.reduce((sum, row) => sum + (row.weightPct * row.riskPct) / 100, 0);
   const weekly = cloned.periodSummary.find((row) => row.period.toLowerCase().includes("week")) || cloned.periodSummary[0];
   const monthly = cloned.periodSummary.find((row) => row.period.toLowerCase().includes("month")) || cloned.periodSummary[1] || cloned.periodSummary[0];
-  const alerts = buildAccountAlerts(cloned, latestSnapshots, latest, concentrationTop3, averageRiskPct, aggregatedRiskPct);
+  const currentDrawdownValue = latest.valueTotal - max(cloned.dailySummary.map((row) => row.valueTotal));
+  const currentDrawdownPct = max(cloned.dailySummary.map((row) => row.valueTotal)) ? (currentDrawdownValue / max(cloned.dailySummary.map((row) => row.valueTotal))) * 100 : 0;
+  const capitalFlow = buildCapitalFlow(cloned);
+  const process = buildProcessModel(cloned, latestSnapshots);
+  const integrity = buildIntegrityModel(cloned, latestSnapshots);
+  const validationStatus = integrity.validationStatus === "valid" ? "Válido" : "A rever";
+  const alerts = buildAccountAlerts(cloned, latestSnapshots, latest, integrity, capitalFlow, concentrationTop3);
+  const staleDays = diffDays(cloned.meta.latestDate, isoToday());
 
   return {
     ...cloned,
+    capitalFlow,
+    process,
+    integrity: {
+      ...integrity,
+      validationStatusLabel: validationStatus,
+      reviewStatusLabel: integrity.reviewStatus === "confirmed" ? "Confirmado" : "Pendente"
+    },
+    systemStatus: {
+      label: staleDays > STALE_DAYS_LIMIT ? "Atenção" : "Em linha",
+      detail: staleDays > STALE_DAYS_LIMIT ? "Conta sem fecho recente." : "Conta atualizada dentro da janela."
+    },
+    validationStatus: {
+      label: validationStatus,
+      detail: integrity.warnings.length ? integrity.warnings.join(" | ") : "Sem erros críticos."
+    },
+    nextAction: {
+      label: alerts[0]?.action || "Manter monitorização",
+      detail: alerts[0]?.title || "Sem ação urgente."
+    },
     metrics: {
       latest: {
         ...latest,
@@ -971,103 +1062,174 @@ function buildAccountModel(accountData) {
         positionsCount: latestSnapshots.length,
         winners: winnerRows.length,
         losers: loserRows.length,
-        bestTicker: best ? best.ticker : "-",
-        bestPct: best ? best.plPct : 0,
-        worstTicker: worst ? worst.ticker : "-",
-        worstPct: worst ? worst.plPct : 0
+        bestTicker: best?.ticker || "-",
+        bestPct: best?.plPct || 0,
+        worstTicker: worst?.ticker || "-",
+        worstPct: worst?.plPct || 0
       },
       latestSnapshots,
       filteredSnapshots,
       averageRiskPct,
+      averageDaysOpen,
       concentrationTop3,
       exposurePct,
       aggregatedRiskPct,
+      mostRiskyTicker: mostRisky?.ticker || "-",
+      mostRiskyRiskPct: mostRisky?.riskPct || 0,
       winnerProfit: sum(winnerRows.map((row) => row.plTotal)),
       loserLoss: sum(loserRows.map((row) => row.plTotal)),
-      averageDaysOpen,
-      maxWeightTicker: maxWeightRow ? maxWeightRow.ticker : "-",
-      maxWeightPct: maxWeightRow ? maxWeightRow.weightPct : 0,
-      dominantSetup: mode(latestSnapshots.map((row) => row.setup)),
       weekly,
       monthly,
+      currentDrawdownValue,
+      currentDrawdownPct,
+      maxWeightTicker: latestSnapshots.sort((a, b) => b.weightPct - a.weightPct)[0]?.ticker || "-",
+      maxWeightPct: [...latestSnapshots].sort((a, b) => b.weightPct - a.weightPct)[0]?.weightPct || 0,
       alerts,
-      governanceStatus: alerts.some((alert) => alert.severity === "critical") ? "Attention required" : "Within controls"
+      governanceStatus: alerts.some((alert) => alert.severity === "critical") ? "Atenção requerida" : "Dentro do plano"
     }
   };
 }
 
-function buildAccountAlerts(account, latestSnapshots, latest, concentrationTop3, averageRiskPct, aggregatedRiskPct) {
+function buildCapitalFlow(account) {
+  const deposits = sum(account.events.filter((event) => event.type === "deposit").map((event) => Math.max(event.value, 0)));
+  const withdrawals = sum(account.events.filter((event) => event.type === "withdrawal").map((event) => Math.abs(event.value)));
+  return {
+    deposits,
+    withdrawals,
+    realizedPl: account.capitalFlow?.realizedPl ?? 0,
+    netFlow: deposits - withdrawals
+  };
+}
+
+function buildProcessModel(account, latestSnapshots) {
+  const setupCounts = {
+    VCP: countSetup(latestSnapshots, "VCP"),
+    "Clean Trend": countSetup(latestSnapshots, "Clean Trend"),
+    Pullback: countSetup(latestSnapshots, "Pullback")
+  };
+  const eventsToday = account.events.filter((event) => event.date === account.meta.latestDate).length;
+  return {
+    setupCounts,
+    activeSetupCount: Object.values(setupCounts).filter((value) => value > 0).length,
+    planCompliance: account.process?.planCompliance || "Conforme",
+    executionQuality: account.process?.executionQuality || "Sólida",
+    thesisStatus: account.process?.thesisStatus || "Válida",
+    eventsToday
+  };
+}
+
+function buildIntegrityModel(account, latestSnapshots) {
+  const warnings = [...(account.integrity?.warnings || [])];
+  const snapshotCount = account.integrity?.snapshotCount ?? latestSnapshots.length;
+  const hasFreshData = diffDays(account.meta.latestDate, isoToday()) <= STALE_DAYS_LIMIT;
+
+  if (!hasFreshData) warnings.push("Falta atualização diária.");
+  if (!latestSnapshots.length) warnings.push("Conta sem snapshots no último fecho.");
+  if ((account.cashBalance ?? 0) !== (account.dailySummary.find((row) => row.date === account.meta.latestDate)?.cash ?? 0)) {
+    warnings.push("Cash balance e dailySummary.cash divergem.");
+  }
+
+  return {
+    snapshotCount,
+    hasCashMatch: account.integrity?.hasCashMatch ?? true,
+    hasPositionValueMatch: account.integrity?.hasPositionValueMatch ?? true,
+    reviewStatus: account.integrity?.reviewStatus ?? "pending",
+    validationStatus: account.integrity?.validationStatus ?? (warnings.length ? "review" : "valid"),
+    warnings: unique(warnings)
+  };
+}
+
+function buildConsolidatedModel(consolidatedSource, accounts) {
+  const alerts = buildMasterAlerts(consolidatedSource, accounts);
+  const validationStatus = alerts.some((alert) => alert.type === "Erro de validação") ? "A rever" : "Válido";
+
+  return {
+    ...structuredClone(consolidatedSource),
+    accounts,
+    alerts,
+    systemStatus: {
+      label: alerts.some((alert) => alert.severity === "critical") ? "Atenção" : "Em linha",
+      detail: "Monitorização consolidada sem FX automático."
+    },
+    validationStatus: {
+      label: validationStatus,
+      detail: alerts.length ? `${alerts.length} alertas ativos.` : "Sem alertas críticos."
+    },
+    nextAction: {
+      label: alerts[0]?.action || "Rever alertas e confirmar fecho",
+      detail: alerts[0]?.title || "Sem ação urgente."
+    }
+  };
+}
+
+function buildAccountAlerts(account, latestSnapshots, latest, integrity, capitalFlow, concentrationTop3) {
   const alerts = [];
-  const highRisk = latestSnapshots.filter((row) => row.riskPct > account.governance.maxPositionRiskPct);
-  const weakToday = latestSnapshots.filter((row) => row.plDayPct <= -2);
+  const belowStop = latestSnapshots.filter((row) => row.currentPrice <= row.stop);
+  const overRisk = latestSnapshots.filter((row) => row.riskPct > account.governance.maxPositionRiskPct);
+  const relevantEvents = account.events.filter((event) => event.date === account.meta.latestDate);
 
-  if (latest.plDay < 0 && Math.abs(latest.plDay) >= account.governance.dailyLossLimit * 0.75) {
-    alerts.push({
-      type: "Risk threshold",
-      title: "Perda diária perto do limite",
-      message: `${account.meta.accountId} aproxima-se de 75% do limite diário.`,
-      severity: "critical"
-    });
+  if (belowStop.length) {
+    alerts.push(alertCardData("critical", "Ativo abaixo do stop", `Abaixo do stop: ${belowStop.map((row) => row.ticker).join(", ")}.`, "Rever execução"));
   }
 
-  if (highRisk.length) {
-    alerts.push({
-      type: "Position risk",
-      title: `${highRisk.length} posição(ões) acima do risco máximo`,
-      message: `Rever ${highRisk.map((row) => row.ticker).join(", ")} face ao limite de ${formatPercent(account.governance.maxPositionRiskPct)}.`,
-      severity: "warning"
-    });
+  if (overRisk.length) {
+    alerts.push(alertCardData("warning", "Risco acima do limite", `Acima do limite: ${overRisk.map((row) => row.ticker).join(", ")}.`, "Reduzir risco"));
   }
 
-  if (concentrationTop3 > 65) {
-    alerts.push({
-      type: "Concentration",
-      title: "Concentração elevada",
-      message: `As 3 maiores posições representam ${formatPercent(concentrationTop3)} da conta.`,
-      severity: "warning"
-    });
+  if (concentrationTop3 > CONCENTRATION_LIMIT) {
+    alerts.push(alertCardData("warning", "Concentração excessiva", `Top 3 pesos em ${formatPercent(concentrationTop3)}.`, "Avaliar diversificação"));
   }
 
-  if (weakToday.length) {
-    alerts.push({
-      type: "Review",
-      title: "Ativos a rever",
-      message: `Hoje pedem revisão: ${weakToday.map((row) => row.ticker).join(", ")}.`,
-      severity: "warning"
-    });
+  if (diffDays(account.meta.latestDate, isoToday()) > STALE_DAYS_LIMIT) {
+    alerts.push(alertCardData("critical", "Falta de atualização diária", "A conta não foi atualizada dentro da janela esperada.", "Atualizar JSON diário"));
   }
 
-  if (averageRiskPct <= account.governance.maxPositionRiskPct * 0.7) {
-    alerts.push({
-      type: "Governance",
-      title: "Risco médio controlado",
-      message: `Risco médio em ${formatPercent(averageRiskPct)} e risco agregado em ${formatPercent(aggregatedRiskPct)}.`,
-      severity: "good"
-    });
+  if (integrity.validationStatus !== "valid") {
+    alerts.push(alertCardData("critical", "Erro de validação", integrity.warnings.join(" | "), "Validar dados"));
   }
 
-  return alerts.slice(0, 4);
+  if (relevantEvents.length) {
+    alerts.push(alertCardData("info", "Evento operacional relevante", `${relevantEvents.length} evento(s) no fecho do dia.`, "Rever eventos"));
+  }
+
+  if (!latestSnapshots.length) {
+    alerts.push(alertCardData("critical", "Conta sem dados recentes", "Não existem posições no último fecho registado.", "Confirmar captura"));
+  }
+
+  if (latest.plDay < 0 && Math.abs(latest.plDay) > account.governance.dailyLossLimit * 0.75) {
+    alerts.push(alertCardData("warning", "Perda diária perto do limite", `P/L diário em ${signedCurrency(latest.plDay, account.meta.currency)}.`, "Rever exposição"));
+  }
+
+  if (capitalFlow.netFlow !== 0 && relevantEvents.some((event) => event.type === "deposit" || event.type === "withdrawal")) {
+    alerts.push(alertCardData("info", "Fluxo de capital relevante", `Fluxo líquido acumulado: ${signedCurrency(capitalFlow.netFlow, account.meta.currency)}.`, "Confirmar caixa"));
+  }
+
+  return alerts.slice(0, 6);
 }
 
 function buildMasterAlerts(consolidated, accounts) {
-  return [
-    {
-      type: "Consolidated view",
-      title: "Sem conversão cambial automática",
-      message: consolidated.meta.consolidationNote,
-      severity: "warning"
-    },
-    ...(consolidated.alerts || []).map((alert) => ({
-      ...alert,
-      severity: alert.severity || "warning"
-    })),
-    ...Object.values(accounts).flatMap((account) =>
-      account.metrics.alerts.slice(0, 1).map((alert) => ({
-        ...alert,
-        title: `${account.meta.currency}: ${alert.title}`
-      }))
-    )
-  ].slice(0, 4);
+  const alerts = [
+    alertCardData("warning", "Sem FX aplicado", consolidated.meta.consolidationNote, "Usar leitura informacional")
+  ];
+
+  Object.values(accounts).forEach((account) => {
+    if (diffDays(account.meta.latestDate, isoToday()) > STALE_DAYS_LIMIT) {
+      alerts.push(alertCardData("critical", `Conta sem dados recentes: ${account.meta.currency}`, "Falta atualização diária ou o fecho está desfasado.", "Atualizar ficheiro da conta"));
+    }
+    account.metrics.alerts.slice(0, 2).forEach((alert) => {
+      alerts.push({ ...alert, title: `${account.meta.currency} | ${alert.title}` });
+    });
+  });
+
+  (consolidated.alerts || []).forEach((alert) => {
+    alerts.push(alertCardData(alert.severity || "info", alert.title, alert.message, "Rever nota master"));
+  });
+
+  return alerts.slice(0, 6);
+}
+
+function alertCardData(severity, title, message, action) {
+  return { severity, title, message, action, type: title };
 }
 
 function applyFilter(rows, filterId) {
@@ -1077,110 +1239,83 @@ function applyFilter(rows, filterId) {
 }
 
 function buildDecision(position, account) {
-  const overRisk = position.riskPct > account.governance.maxPositionRiskPct;
-  const weak = position.plDayPct < -1.5;
-  const strong = position.plPct > 8;
-
-  if (overRisk && weak) return { reading: "Risco elevado com deterioração", action: "Reduzir ou reancorar stop", priority: "Alta" };
-  if (strong && position.weightPct > 18) return { reading: "Vencedor relevante", action: "Avaliar parcial", priority: "Média" };
-  if (position.status.toLowerCase().includes("watch")) return { reading: "Setup em observação", action: "Esperar confirmação", priority: "Baixa" };
+  if (position.currentPrice <= position.stop) {
+    return { reading: "Stop comprometido", action: "Decidir saída", priority: "Alta" };
+  }
+  if (position.riskPct > account.governance.maxPositionRiskPct) {
+    return { reading: "Risco acima do plano", action: "Reduzir tamanho", priority: "Alta" };
+  }
+  if (position.plPct > 8 && position.weightPct > 18) {
+    return { reading: "Vencedor relevante", action: "Avaliar parcial", priority: "Média" };
+  }
+  if (position.status.toLowerCase().includes("watch")) {
+    return { reading: "Em observação", action: "Esperar confirmação", priority: "Baixa" };
+  }
   return { reading: "Estrutura controlada", action: "Manter plano", priority: "Média" };
 }
 
 function drawVisibleCharts(account) {
   if (state.sectionView !== "charts") return;
-
-  drawLineChart("valueChart", {
-    labels: account.dailySummary.map((row) => formatDateShort(row.date)),
-    values: account.dailySummary.map((row) => row.valueTotal),
-    stroke: "#8fd0ff",
-    fill: "rgba(143, 208, 255, 0.16)"
-  });
-
-  drawDonutChart("allocationChart", account.metrics.latestSnapshots.map((row) => ({
-    label: row.ticker,
-    value: row.weightPct
-  })));
-
-  drawBarChart("dailyPlChart", account.dailySummary.map((row) => ({
-    label: formatDateShort(row.date),
-    value: row.plDay
-  })), account.meta.currency);
+  drawLineChart("valueChart", account.dailySummary.map((row) => ({ label: formatDateShort(row.date), value: row.valueTotal })), "#8fd0ff", "rgba(143, 208, 255, 0.16)");
+  drawDonutChart("allocationChart", account.metrics.latestSnapshots.map((row) => ({ label: row.ticker, value: row.weightPct })));
+  drawBarChart("dailyPlChart", account.dailySummary.map((row) => ({ label: formatDateShort(row.date), value: row.plDay })), account.meta.currency);
 }
 
 function drawMasterCharts(consolidated) {
   if (state.sectionView !== "charts") return;
-
-  drawLineChart("eurValueChart", {
-    labels: consolidated.accounts.EUR.dailySummary.map((row) => formatDateShort(row.date)),
-    values: consolidated.accounts.EUR.dailySummary.map((row) => row.valueTotal),
-    stroke: "#57c8b0",
-    fill: "rgba(87, 200, 176, 0.16)"
-  });
-
-  drawLineChart("usdValueChart", {
-    labels: consolidated.accounts.USD.dailySummary.map((row) => formatDateShort(row.date)),
-    values: consolidated.accounts.USD.dailySummary.map((row) => row.valueTotal),
-    stroke: "#66b6ff",
-    fill: "rgba(102, 182, 255, 0.16)"
-  });
-
+  drawLineChart("eurValueChart", consolidated.accounts.EUR.dailySummary.map((row) => ({ label: formatDateShort(row.date), value: row.valueTotal })), "#57c8b0", "rgba(87, 200, 176, 0.16)");
+  drawLineChart("usdValueChart", consolidated.accounts.USD.dailySummary.map((row) => ({ label: formatDateShort(row.date), value: row.valueTotal })), "#66b6ff", "rgba(102, 182, 255, 0.16)");
   drawGroupedBars("riskBarChart", [
-    { label: "EUR", value: consolidated.accounts.EUR.metrics.exposurePct, color: "#57c8b0" },
-    { label: "USD", value: consolidated.accounts.USD.metrics.exposurePct, color: "#66b6ff" }
+    { label: "EUR", value: consolidated.totals.riskAggregateEUR, color: "#57c8b0" },
+    { label: "USD", value: consolidated.totals.riskAggregateUSD, color: "#66b6ff" }
   ]);
 }
 
-function drawLineChart(canvasId, config) {
+function drawLineChart(canvasId, pointsData, stroke, fill) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
   const ctx = prepareCanvas(canvas);
-  if (!ctx) return;
-
   const width = canvas.width;
   const height = canvas.height;
   const padding = { top: 24, right: 24, bottom: 32, left: 44 };
-  const min = Math.min(...config.values);
-  const max = Math.max(...config.values);
-  const range = max - min || 1;
+  const values = pointsData.map((item) => item.value);
+  const min = Math.min(...values);
+  const maxValue = Math.max(...values);
+  const range = maxValue - min || 1;
 
   ctx.clearRect(0, 0, width, height);
   drawChartFrame(ctx, width, height, padding);
 
-  const points = config.values.map((value, index) => {
-    const x = padding.left + ((width - padding.left - padding.right) / Math.max(config.values.length - 1, 1)) * index;
-    const y = height - padding.bottom - ((value - min) / range) * (height - padding.top - padding.bottom);
-    return { x, y };
-  });
+  const points = pointsData.map((item, index) => ({
+    x: padding.left + ((width - padding.left - padding.right) / Math.max(pointsData.length - 1, 1)) * index,
+    y: height - padding.bottom - ((item.value - min) / range) * (height - padding.top - padding.bottom),
+    label: item.label
+  }));
 
   ctx.beginPath();
   ctx.moveTo(points[0].x, height - padding.bottom);
   points.forEach((point) => ctx.lineTo(point.x, point.y));
   ctx.lineTo(points[points.length - 1].x, height - padding.bottom);
   ctx.closePath();
-  ctx.fillStyle = config.fill;
+  ctx.fillStyle = fill;
   ctx.fill();
 
   ctx.beginPath();
   ctx.moveTo(points[0].x, points[0].y);
   points.forEach((point) => ctx.lineTo(point.x, point.y));
-  ctx.strokeStyle = config.stroke;
+  ctx.strokeStyle = stroke;
   ctx.lineWidth = 3;
   ctx.stroke();
 
   ctx.fillStyle = "#dbe8f8";
   ctx.font = "12px Manrope";
-  config.labels.forEach((label, index) => {
-    ctx.fillText(label, points[index].x - 12, height - 12);
-  });
+  points.forEach((point) => ctx.fillText(point.label, point.x - 12, height - 12));
 }
 
 function drawDonutChart(canvasId, series) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
   const ctx = prepareCanvas(canvas);
-  if (!ctx) return;
-
   const total = sum(series.map((item) => item.value)) || 1;
   const centerX = canvas.width / 2;
   const centerY = canvas.height / 2;
@@ -1206,28 +1341,26 @@ function drawDonutChart(canvasId, series) {
   ctx.fillText("100%", centerX, centerY + 8);
   ctx.font = "12px Manrope";
   ctx.fillStyle = "#9db0c8";
-  ctx.fillText("portfolio weight", centerX, centerY + 28);
+  ctx.fillText("peso da carteira", centerX, centerY + 28);
 }
 
 function drawBarChart(canvasId, series, currency) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
   const ctx = prepareCanvas(canvas);
-  if (!ctx) return;
-
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawChartFrame(ctx, canvas.width, canvas.height, { top: 24, right: 20, bottom: 34, left: 38 });
 
-  const max = Math.max(...series.map((item) => Math.abs(item.value))) || 1;
+  const maxValue = Math.max(...series.map((item) => Math.abs(item.value))) || 1;
   const baseline = canvas.height / 2 + 12;
   const barWidth = Math.max(18, (canvas.width - 90) / series.length - 10);
 
   series.forEach((item, index) => {
-    const height = (Math.abs(item.value) / max) * (canvas.height * 0.3);
+    const barHeight = (Math.abs(item.value) / maxValue) * (canvas.height * 0.3);
     const x = 48 + index * (barWidth + 10);
-    const y = item.value >= 0 ? baseline - height : baseline;
+    const y = item.value >= 0 ? baseline - barHeight : baseline;
     ctx.fillStyle = item.value >= 0 ? "rgba(77, 212, 168, 0.88)" : "rgba(255, 111, 125, 0.88)";
-    ctx.fillRect(x, y, barWidth, height);
+    ctx.fillRect(x, y, barWidth, barHeight);
     ctx.fillStyle = "#9db0c8";
     ctx.font = "11px Manrope";
     ctx.save();
@@ -1252,18 +1385,16 @@ function drawGroupedBars(canvasId, series) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
   const ctx = prepareCanvas(canvas);
-  if (!ctx) return;
-
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawChartFrame(ctx, canvas.width, canvas.height, { top: 24, right: 20, bottom: 30, left: 36 });
 
-  const max = Math.max(...series.map((item) => item.value), 100);
+  const maxValue = Math.max(...series.map((item) => item.value), 100);
   const chartHeight = canvas.height - 70;
   const baseline = canvas.height - 34;
   const slotWidth = (canvas.width - 80) / series.length;
 
   series.forEach((item, index) => {
-    const barHeight = (item.value / max) * chartHeight;
+    const barHeight = (item.value / maxValue) * chartHeight;
     const x = 50 + index * slotWidth;
     const width = Math.min(88, slotWidth * 0.5);
     const y = baseline - barHeight;
@@ -1271,7 +1402,7 @@ function drawGroupedBars(canvasId, series) {
     ctx.fillRect(x, y, width, barHeight);
     ctx.fillStyle = "#eef4ff";
     ctx.font = "700 14px Manrope";
-    ctx.fillText(`${item.value.toFixed(1)}%`, x, y - 8);
+    ctx.fillText(`${item.value.toFixed(2)}%`, x, y - 8);
     ctx.fillStyle = "#9db0c8";
     ctx.fillText(item.label, x, baseline + 18);
   });
@@ -1298,35 +1429,27 @@ function drawChartFrame(ctx, width, height, padding) {
 
 function renderError(error) {
   subtitleMount.textContent = "Não foi possível carregar os ficheiros JSON";
-  liveStatusMount.textContent = "Fetch error";
+  liveStatusMount.textContent = "Erro de fetch";
   alertsMount.innerHTML = `
     <article class="alert-card critical">
       <div class="section-label">Erro</div>
       <h3>Falha a ler a pasta data</h3>
-      <p>${error.message}. Em GitHub Pages funciona por HTTP; localmente use um servidor estático.</p>
+      <p>${error.message}. Em GitHub Pages funciona por HTTP; localmente usa um servidor estático.</p>
     </article>
   `;
   mount.innerHTML = document.getElementById("emptyStateTemplate").innerHTML;
 }
 
 function formatCurrency(value, currency) {
-  return new Intl.NumberFormat("pt-PT", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2
-  }).format(value);
+  return new Intl.NumberFormat("pt-PT", { style: "currency", currency, maximumFractionDigits: 2 }).format(value);
 }
 
 function formatNumber(value, currency) {
-  return `${new Intl.NumberFormat("pt-PT", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(value)} ${currency}`;
+  return `${new Intl.NumberFormat("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)} ${currency}`;
 }
 
 function signedCurrency(value, currency) {
-  const sign = value > 0 ? "+" : "";
-  return `${sign}${formatCurrency(value, currency)}`;
+  return `${value > 0 ? "+" : ""}${formatCurrency(value, currency)}`;
 }
 
 function formatPercent(value) {
@@ -1334,8 +1457,7 @@ function formatPercent(value) {
 }
 
 function signedPercent(value) {
-  const sign = value > 0 ? "+" : "";
-  return `${sign}${formatPercent(value)}`;
+  return `${value > 0 ? "+" : ""}${formatPercent(value)}`;
 }
 
 function formatDateShort(value) {
@@ -1343,11 +1465,11 @@ function formatDateShort(value) {
 }
 
 function formatDateLong(value) {
-  return new Date(value).toLocaleDateString("pt-PT", {
-    year: "numeric",
-    month: "short",
-    day: "2-digit"
-  });
+  return new Date(value).toLocaleDateString("pt-PT", { year: "numeric", month: "short", day: "2-digit" });
+}
+
+function formatDateTime(value) {
+  return new Date(value).toLocaleString("pt-PT", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
 function stageClass(stage) {
@@ -1368,10 +1490,26 @@ function sum(values) {
   return values.reduce((total, value) => total + value, 0);
 }
 
-function mode(values) {
-  const count = new Map();
-  values.forEach((value) => count.set(value, (count.get(value) || 0) + 1));
-  return [...count.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "-";
+function max(values) {
+  return values.length ? Math.max(...values) : 0;
+}
+
+function countSetup(rows, setupName) {
+  return rows.filter((row) => row.setup === setupName).length;
+}
+
+function diffDays(dateA, dateB) {
+  const start = new Date(dateA);
+  const end = new Date(dateB);
+  return Math.floor((end - start) / 86400000);
+}
+
+function isoToday() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function unique(values) {
+  return [...new Set(values)];
 }
 
 function palette(index) {
@@ -1382,3 +1520,4 @@ function palette(index) {
 function escapeHtml(value) {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
+
