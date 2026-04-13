@@ -24,13 +24,13 @@
     "USD": {
       "portfolioName": "USA USD",
       "currency": "USD",
-      "latestDate": "2026-04-10",
-      "valueTotal": 134.77,
+      "latestDate": "2026-04-13",
+      "valueTotal": 137.71,
       "cash": 0.0,
-      "plOpen": 3.28,
-      "plOpenPct": 2.43,
-      "plDay": 0.21,
-      "plDayPct": 0.16,
+      "plOpen": 6.22,
+      "plOpenPct": 4.52,
+      "plDay": 2.94,
+      "plDayPct": 2.18,
       "positions": 7,
       "bestTicker": "SNDK",
       "worstTicker": "ERAS",
@@ -39,7 +39,7 @@
   },
   "totals": {
     "eurValueTotal": 77.43,
-    "usdValueTotal": 134.77,
+    "usdValueTotal": 137.71,
     "eurPositions": 7,
     "usdPositions": 7,
     "consolidatedViewMode": "non_converted"
