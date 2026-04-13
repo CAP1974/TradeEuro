@@ -2,20 +2,20 @@
   "meta": {
     "appName": "Institutional Trading Control Center",
     "version": "1.0.0",
-    "latestDate": "2026-04-10",
+    "latestDate": "2026-04-13",
     "notes": "Visão agregada não convertida. EUR e USD reais confirmadas."
   },
   "accounts": {
     "EUR": {
       "portfolioName": "Europa EUR",
       "currency": "EUR",
-      "latestDate": "2026-04-10",
-      "valueTotal": 77.72,
+      "latestDate": "2026-04-13",
+      "valueTotal": 77.43,
       "cash": 0.0,
-      "plOpen": 2.15,
-      "plOpenPct": 2.77,
-      "plDay": 0.31,
-      "plDayPct": 0.4,
+      "plOpen": 1.85,
+      "plOpenPct": 2.39,
+      "plDay": -0.3,
+      "plDayPct": -0.39,
       "positions": 7,
       "bestTicker": "SMSN",
       "worstTicker": "OMV",
@@ -38,7 +38,7 @@
     }
   },
   "totals": {
-    "eurValueTotal": 77.72,
+    "eurValueTotal": 77.43,
     "usdValueTotal": 134.77,
     "eurPositions": 7,
     "usdPositions": 7,
